@@ -1,0 +1,13 @@
+<div class="controle">
+  <button (click)="addNode()">Add Node</button>
+</div>
+<div class="nodes">
+  <dn-node *ngFor="let n of nodes"
+      dnDraggable
+      [(posX)]="n.position.x" [(posY)]="n.position.y"
+      [title]="n.title"
+      [inputs]="n.sinks" [outputs]="n.sources"
+      (portDragged)="onPortDragged($event)" (portDropped)="onPortDropped($event)"
+      (connectionReceived)="onPortReceivedConnection($event)">
+  </dn-node>
+</div>

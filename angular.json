@@ -163,6 +163,10 @@
           }
         }
       }
-    }},
-  "defaultProject": "dragnodes"
+    }
+  },
+  "defaultProject": "dragnodes",
+  "cli": {
+    "packageManager": "yarn"
+  }
 }
