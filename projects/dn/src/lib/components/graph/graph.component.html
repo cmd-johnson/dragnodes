@@ -2,32 +2,7 @@
   <button (click)="addNode()">Add Node</button>
 </div>
 <div class="nodes" id="node-container">
-  <dn-node *ngFor="let n of nodes" [node]="n" (deleteNode)="deleteNode(n)"></dn-node>
-  <!-- <div *ngFor="let n of nodes" class="node" dnNode [node]="n">
-    <div class="node-header">{{n.name}}</div>
-    <div class="node-body">
-      <div class="node-inputs">
-        <div *ngFor="let i of n.inputs" class="node-input">
-          <span class="input-port" dnNodePort [port]="i"></span>
-          {{i.name}}
-        </div>
-      </div>
-      <div *ngIf="n.inputs.length > 0 && n.outputs.length > 0" class="divider"></div>
-      <div class="node-outputs">
-        <div *ngFor="let o of n.outputs" class="node-output">
-          {{o.name}}
-          <span class="output-port" dnNodePort [port]="o"></span>
-        </div>
-      </div>
-    </div>
-  </div> -->
-  <dn-connections class="connections">
+  <dn-node *ngFor="let n of graphState.nodes" [node]="n" (deleteNode)="deleteNode(n)" (nodeMoved)="nodeMoved(n, $event)" [style.transform]="getNodeTransform(n)"></dn-node>
+  <dn-connections class="connections" [actualConnections]="graphState.connections" [draggedConnections]="graphState.draggedConnections">
   </dn-connections>
-  <svg class="connections">
-    <ng-container *ngFor="let c of activeConnectionDrags">
-      <path class="connection" [attr.d]="c.path" />
-      <circle class="connector" [attr.cx]="c.from.x" [attr.cy]="c.from.y" r="3" />
-      <circle class="connector" [attr.cx]="c.to.x" [attr.cy]="c.to.y" r="3" />
-    </ng-container>
-  </svg>
 </div>

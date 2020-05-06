@@ -6,9 +6,8 @@
 .nodes {
   flex: 1 1 auto;
 
-  touch-action: none;
-
   .node {
+    touch-action: none;
     user-select: none;
 
     position: absolute;

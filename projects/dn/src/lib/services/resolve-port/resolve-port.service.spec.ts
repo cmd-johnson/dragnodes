@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { DnService } from './dn.service';
+import { ResolvePortService } from './resolve-port.service';
 
-describe('DnService', () => {
-  let service: DnService;
+describe('ResolvePortService', () => {
+  let service: ResolvePortService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(DnService);
+    service = TestBed.inject(ResolvePortService);
   });
 
   it('should be created', () => {

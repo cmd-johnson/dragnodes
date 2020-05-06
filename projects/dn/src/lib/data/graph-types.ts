@@ -38,7 +38,7 @@ export class GraphNode {
 
   constructor(
     public readonly name: string,
-    public readonly position: Position = { x: 0, y: 0 }
+    public position: Position = { x: 0, y: 0 }
   ) { }
 
   addOutputs(...newOutputs: OutputPort[]) {
