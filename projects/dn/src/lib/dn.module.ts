@@ -1,35 +1,28 @@
 import { NgModule } from '@angular/core';
 import { DnComponent } from './dn.component';
-import { DragContainerComponent } from './components/drag-container/drag-container.component';
-import { DraggableComponent } from './components/draggable/draggable.component';
-import { NodeComponent } from './components/node/node.component';
-import { DraggableDirective } from './directives/draggable/draggable.directive';
-import { NodeAreaComponent } from './components/node-area/node-area.component';
 import { CommonModule } from '@angular/common';
 import { GraphComponent } from './components/graph/graph.component';
 import { NodePortDirective } from './directives/node-port/node-port.directive';
+import { NodeDirective } from './directives/node/node.directive';
+import { ConnectionsComponent } from './components/graph/connections/connections.component';
+import { NodeComponent } from './components/graph/node/node.component';
+import { PortComponent } from './components/graph/node/port/port.component';
 
 @NgModule({
   declarations: [
     DnComponent,
-    DragContainerComponent,
-    DraggableComponent,
-    NodeComponent,
-    DraggableDirective,
-    NodeAreaComponent,
     GraphComponent,
-    NodePortDirective
+    NodePortDirective,
+    NodeDirective,
+    ConnectionsComponent,
+    NodeComponent,
+    PortComponent
   ],
   imports: [
     CommonModule
   ],
   exports: [
     DnComponent,
-    DragContainerComponent,
-    DraggableComponent,
-    DraggableDirective,
-    NodeComponent,
-    NodeAreaComponent,
     GraphComponent
   ]
 })

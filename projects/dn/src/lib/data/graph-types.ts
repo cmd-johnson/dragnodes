@@ -1,79 +1,78 @@
 import { Subject, Subscription, Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Position } from './position';
-import { connectableObservableDescriptor } from 'rxjs/internal/observable/ConnectableObservable';
 
 declare const console: any;
 
 type Value = string;
 
 class Graph {
-  private nodes: Node[] = [];
+  private nodes: GraphNode[] = [];
 
   private connections: Connection[] = [];
 
   private dragConnection?: DragConnection;
 
-  addNode(node: Node) {
+  addNode(node: GraphNode) {
     this.nodes.push(node);
   }
 
-  startDragConnectionFromSource(source: Source) {
-    this.dragConnection = DragConnection.startFromSource(source);
+  startDragConnectionFromSource(output: OutputPort) {
+    this.dragConnection = DragConnection.startFromOutput(output);
   }
 
-  startDragConnectionFromSink(sink: Sink) {
-    this.dragConnection = DragConnection.startFromSink(sink);
+  startDragConnectionFromSink(input: InputPort) {
+    this.dragConnection = DragConnection.startFromInput(input);
   }
 }
 
-const sources = Symbol();
-const sinks = Symbol();
+const outputs = Symbol('outputs');
+const inputs = Symbol('inputs');
 
-export class Node {
-  [sources]?: Source[] = [];
-  [sinks]?: Sink[] = [];
+export class GraphNode {
+  [outputs]?: OutputPort[] = [];
+  [inputs]?: InputPort[] = [];
 
-  get sources(): Source[] { return [...this[sources]]; }
-  get sinks(): Sink[] { return [...this[sinks]]; }
+  get outputs(): OutputPort[] { return [...this[outputs]]; }
+  get inputs(): InputPort[] { return [...this[inputs]]; }
 
   constructor(
-    public readonly title: string,
+    public readonly name: string,
     public readonly position: Position = { x: 0, y: 0 }
   ) { }
 
-  addSources(...newSources: Source[]) {
-    newSources
-      .filter(ns => this[sources].every(s => s !== ns))
+  addOutputs(...newOutputs: OutputPort[]) {
+    newOutputs
+      .filter(ns => this[outputs].every(s => s !== ns))
       .forEach(ns => {
-        this[sources].push(ns);
+        this[outputs].push(ns);
         ns.parent = this;
       });
   }
 
-  addSinks(...newSinks: Sink[]) {
-    newSinks
-      .filter(ns => this[sinks].every(s => s !== ns))
+  addInputs(...newInputs: InputPort[]) {
+    newInputs
+      .filter(ns => this[inputs].every(s => s !== ns))
       .forEach(ns => {
-        this[sinks].push(ns);
+        this[inputs].push(ns);
         ns.parent = this;
       });
   }
 }
 
-function hasCircularDependency(fromUpstream: Node, toDownstream: Node): boolean {
-  const visited = new Set<Node>();
-  const fringe = new Set<Node>();
+function hasCircularDependency(fromUpstream: GraphNode, toDownstream: GraphNode): boolean {
+  const visited = new Set<GraphNode>();
+  const fringe = new Set<GraphNode>();
   fringe.add(fromUpstream);
 
   while (fringe.size > 0) {
-    const next = fringe.values().next().value as Node;
+    const next = fringe.values().next().value as GraphNode;
     if (next === toDownstream) {
       return true;
     }
     visited.add(next);
     fringe.delete(next);
-    next.sinks
+    next.inputs
       .map(s => s.parent)
       .filter(n => !!n && !visited.has(n))
       .forEach(n => fringe.add(n));
@@ -82,9 +81,16 @@ function hasCircularDependency(fromUpstream: Node, toDownstream: Node): boolean 
   return false;
 }
 
-export class Source {
+export interface Port {
+  parent: GraphNode;
+  connection?: Connection;
+  readonly name: string;
+  readonly isConnected: boolean;
+}
+
+export class OutputPort implements Port {
   connection?: Connection = null;
-  parent: Node;
+  parent: GraphNode;
 
   get isConnected() { return this.connection !== null; }
 
@@ -94,8 +100,8 @@ export class Source {
   ) { }
 
   canReceiveConnectionFrom(sender: any): boolean {
-    console.log('checking from', this, 'to source', sender);
-    if (!(sender instanceof Sink) || this.isConnected) {
+    console.log('checking from', this, 'to input', sender);
+    if (!(sender instanceof InputPort) || this.isConnected) {
       return false;
     }
 
@@ -103,8 +109,8 @@ export class Source {
   }
 }
 
-export class Sink {
-  parent: Node;
+export class InputPort implements Port {
+  parent: GraphNode;
   connection?: Connection;
 
   get isConnected() { return this.connection !== null; }
@@ -116,8 +122,8 @@ export class Sink {
   ) { }
 
   canReceiveConnectionFrom(sender: any): boolean {
-    console.log('checking from', this, 'to sink', sender);
-    if (this.isConnected || !(sender instanceof Source)) {
+    console.log('checking from', this, 'to output', sender);
+    if (this.isConnected || !(sender instanceof OutputPort)) {
       return false;
     }
     return !hasCircularDependency(sender.parent, this.parent);
@@ -126,41 +132,41 @@ export class Sink {
 
 export class DragConnection {
   constructor(
-    private source?: Source,
-    private sink?: Sink
+    private output?: OutputPort,
+    private input?: InputPort
   ) { }
 
-  static startFromSource(source: Source) {
-    return new DragConnection(source, null);
+  static startFromOutput(output: OutputPort) {
+    return new DragConnection(output, null);
   }
 
-  static startFromSink(sink: Sink) {
-    return new DragConnection(null, sink);
+  static startFromInput(input: InputPort) {
+    return new DragConnection(null, input);
   }
 }
 
 export class Connection {
   private latestValue?: Value;
+  private subscription: Subscription;
 
   get latest() {
     return this.latestValue;
   }
 
   private constructor(
-    public readonly from: Source,
-    public readonly to: Sink,
-    private subscription: Subscription
+    public readonly from: OutputPort,
+    public readonly to: InputPort
   ) { }
 
-  static connect(source: Source, sink: Sink): Connection {
+  static connect(output: OutputPort, input: InputPort): Connection {
     const connection = new Connection(
-      source,
-      sink,
-      source.observable.pipe(tap(v => connection.lastValue = v)
-    ).subscribe(sink.subject));
+      output,
+      input
+    );
+    connection.subscription = output.observable.pipe(tap(v => connection.latestValue = v)).subscribe(input.subject);
 
-    source.connection = connection;
-    sink.connection = connection;
+    output.connection = connection;
+    input.connection = connection;
 
     return connection;
   }

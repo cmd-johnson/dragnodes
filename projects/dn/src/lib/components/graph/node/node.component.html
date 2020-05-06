@@ -1,0 +1,16 @@
+<div class="node-header">{{node.name}}</div>
+<div class="node-body">
+  <div class="node-inputs">
+    <div *ngFor="let i of node.inputs" class="node-input">
+      <dn-port color="#DD2C00" [port]="i"></dn-port>
+      {{i.name}}
+    </div>
+  </div>
+  <div *ngIf="node.inputs.length > 0 && node.outputs.length > 0" class="divider"></div>
+  <div class="node-outputs">
+    <div *ngFor="let o of node.outputs" class="node-output">
+      {{o.name}}
+      <dn-port color="#64DD17" [port]="o"></dn-port>
+    </div>
+  </div>
+</div>
