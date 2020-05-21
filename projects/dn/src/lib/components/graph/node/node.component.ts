@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ElementRef, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
 import interact from 'interactjs';
 import { Subject } from 'rxjs';
 import { takeUntil, map } from 'rxjs/operators';
@@ -28,6 +28,10 @@ export class NodeComponent implements AfterViewInit, OnDestroy {
 
   @Output()
   nodeMoved = new EventEmitter<Position>();
+
+  @HostListener('mousedown') onMouseDown() {
+    console.log('down: NODE');
+  }
 
   private nodeDragged = new Subject<NodeDraggedEvent>();
 

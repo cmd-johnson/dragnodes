@@ -1,113 +1,126 @@
 import { Injectable } from '@angular/core';
 import { Subject, ReplaySubject } from 'rxjs';
-import { scan } from 'rxjs/operators';
+import { scan, takeUntil, map, tap, take } from 'rxjs/operators';
 import produce from 'immer';
 
 import { GraphAction } from './graph-actions';
 import { GraphNode, InputPort, OutputPort, Port } from '../../data/graph-types';
 import { Position } from '../../data/position';
+import { reducers } from './reducers';
+import { ResolvePortService } from '../resolve-port/resolve-port.service';
 
 export interface GraphState {
   nodes: GraphNode[];
   connections: { from: OutputPort, to: InputPort }[];
   draggedConnections: Map<Port, Position>;
+  detachedDraggedConnections: Map<Port, { remainingOrigin: Port, cursorPosition: Position, released: boolean }>;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class GraphService {
+  private unsubscribe = new Subject();
 
   private actions = new Subject<GraphAction>();
 
   public state = new ReplaySubject<GraphState>(1);
 
-  constructor() {
-    const initialState: GraphState = { nodes: [], connections: [], draggedConnections: new Map() };
-    const actionHandler = produce((state, action) => this.handleAction(state, action));
+  public visibleConnections = new ReplaySubject<{ from: Position | OutputPort, to: Position | InputPort }[]>();
 
-    this.actions.pipe(scan(actionHandler, initialState)).subscribe(this.state);
-    this.state.subscribe();
+  constructor(
+    private resolvePort: ResolvePortService
+  ) {
+    const initialState: GraphState = { nodes: [], connections: [], draggedConnections: new Map(), detachedDraggedConnections: new Map() };
+    const actionHandler = produce((state, action) => reducers
+      .filter(({ filter }) => filter === action.type)
+      .reduce((s, r) => {
+        try {
+          return r.reducer(s, action as any);
+        } catch (e) {
+          console.error('reducer errored:', e);
+          return s;
+        }
+      }, state)
+    );
+
+    this.actions.pipe(
+      tap(a => {
+        //if (a.type !== 'move node' && a.type !== 'drag port connection') {
+          console.log(a);
+        //}
+      }),
+      scan(actionHandler, initialState),
+      takeUntil(this.unsubscribe)
+    ).subscribe(this.state);
     this.state.next(initialState);
+
+    this.state.pipe(
+      map(s => [].concat(
+        s.connections.map(c => ({...c})),
+        [...s.draggedConnections.entries()].map(([from, to]) => {
+          const fromIsOutput = from instanceof OutputPort;
+          return {
+            from: fromIsOutput ? from : to,
+            to: fromIsOutput ? to : from
+          };
+        }),
+        [...s.detachedDraggedConnections.values()].filter(({ released }) => !released).map(({ remainingOrigin, cursorPosition }) => {
+          const originIsOutput = remainingOrigin instanceof OutputPort;
+          return {
+            from: originIsOutput ? remainingOrigin : cursorPosition,
+            to: originIsOutput ? cursorPosition : remainingOrigin
+          };
+        })
+      )),
+      takeUntil(this.unsubscribe)
+    ).subscribe(this.visibleConnections);
   }
 
-  private handleAction(state: GraphState, action: GraphAction): GraphState {
-    switch (action.type) {
-      case 'add node':
-        state.nodes.push(action.node);
-        break;
-      case 'remove node': {
-        const index = state.nodes.findIndex(n => n.name === action.node.name);
-        state.nodes.splice(index, 1);
-        state.connections = state.connections.filter(({ from, to }) => (
-          from.parent.name !== action.node.name && to.parent.name !== action.node.name
-        ));
-        action.node.inputs.forEach(i => state.draggedConnections.delete(i));
-        action.node.outputs.forEach(o => state.draggedConnections.delete(o));
-        break;
-      }
-      case 'move node': {
-        const index = state.nodes.findIndex(n => n.name === action.node.name);
-        state.nodes[index].position = action.position;
-        break;
-      }
-      case 'drag port connection': {
-        state.draggedConnections.set(action.origin, action.cursor);
-        break;
-      }
-      case 'release port connection':
-        state.draggedConnections.delete(action.origin);
-        break;
-      case 'connect port': {
-        if (action.input.parent !== action.output.parent &&
-          !state.connections.some(({ from, to }) =>
-            (from.name === action.output.name && from.parent.name === action.output.parent.name) ||
-            (to.name === action.input.name && to.parent.name === action.input.parent.name)
-          )
-        ) {
-          state.connections.push({ from: action.output, to: action.input });
-        }
-        break;
-      }
-      case 'disconnect port': {
-        const index = state.connections.findIndex(({ from, to }) =>
-          (from.name === action.output.name && from.parent.name === action.output.name) &&
-          (to.name === action.input.name && to.parent.name === action.input.parent.name)
-        );
-        if (index >= 0) {
-          state.connections.splice(index, 1);
-        }
-        break;
-      }
-    }
-    return state;
+  private sendAction(action: GraphAction) {
+    this.actions.next(action);
   }
 
   addNode(node: GraphNode) {
-    this.actions.next({ type: 'add node', node });
+    this.sendAction({ type: 'add node', node });
   }
 
   removeNode(node: GraphNode) {
-    this.actions.next({ type: 'remove node', node });
+    this.sendAction({ type: 'remove node', node });
   }
 
   moveNode(node: GraphNode, position: Position) {
-    this.actions.next({ type: 'move node', node, position });
+    this.sendAction({ type: 'move node', node, position });
+  }
+
+  startPortConnectionDrag(origin: Port, interaction: Interact.Interaction, interactable: Interact.Interactable) {
+    this.state.pipe(take(1)).subscribe(s => {
+      if (!s.connections.some(c => c.from === origin || c.to === origin)) {
+        this.resolvePort.getPortDirective(origin).startDrag(interaction, interactable);
+      } else {
+        const connection = s.connections.find(c => c.from === origin || c.to === origin);
+        if (connection.from === origin) {
+          this.resolvePort.getPortDirective(connection.to).startDrag(interaction, interactable);
+        } else {
+          this.resolvePort.getPortDirective(connection.from).startDrag(interaction, interactable);
+        }
+      }
+    });
   }
 
   dragPortConnection(origin: Port, cursor: Position) {
-    this.actions.next({ type: 'drag port connection', origin, cursor });
+    this.sendAction({ type: 'drag port connection', origin, cursor });
   }
 
   releasePortConnection(origin: Port) {
-    this.actions.next({ type: 'release port connection', origin });
+    this.sendAction({ type: 'release port connection', origin });
   }
 
-  connectPorts(output: OutputPort, input: InputPort) {
-    this.actions.next({ type: 'connect port', output, input });
+  connectPorts(droppedOn: Port, from: Port) {
+    this.sendAction({ type: 'connect port', droppedOn, from });
   }
 
   disconnectPorts(output: OutputPort, input: InputPort) {
-    this.actions.next({ type: 'disconnect port', output, input });
+    this.sendAction({ type: 'disconnect port', output, input });
   }
 }

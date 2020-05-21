@@ -1,5 +1,8 @@
 {
-  "extends": "tslint:recommended",
+  "extends": [
+    "tslint:recommended",
+    "rxjs-tslint-rules"
+  ],
   "rules": {
     "align": {
       "options": [
@@ -140,7 +143,10 @@
     "template-banana-in-box": true,
     "template-no-negated-async": true,
     "use-lifecycle-interface": true,
-    "use-pipe-transform-interface": true
+    "use-pipe-transform-interface": true,
+
+    "rxjs-no-unsafe-takeuntil": true,
+    "rxjs-prefer-angular-takeuntil": true
   },
   "rulesDirectory": [
     "codelyzer"

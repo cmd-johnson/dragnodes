@@ -3,6 +3,6 @@
 </div>
 <div class="nodes" id="node-container">
   <dn-node *ngFor="let n of graphState.nodes" [node]="n" (deleteNode)="deleteNode(n)" (nodeMoved)="nodeMoved(n, $event)" [style.transform]="getNodeTransform(n)"></dn-node>
-  <dn-connections class="connections" [actualConnections]="graphState.connections" [draggedConnections]="graphState.draggedConnections">
+  <dn-connections class="connections" [visibleConnections]="visibleConnections | async">
   </dn-connections>
 </div>

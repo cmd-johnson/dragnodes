@@ -1,53 +1,57 @@
 import { InputPort, OutputPort, Port, GraphNode } from '../../data/graph-types';
 import { Position } from '../../data/position';
 
-interface GraphActionBase {
-  type: string;
+export interface AddNodeAction {
+  readonly type: 'add node';
+  readonly node: GraphNode;
 }
 
-interface AddNodeAction extends GraphActionBase {
-  type: 'add node';
-  node: GraphNode;
+export interface RemoveNodeAction {
+  readonly type: 'remove node';
+  readonly node: GraphNode;
 }
 
-interface RemoveNodeAction extends GraphActionBase {
-  type: 'remove node';
-  node: GraphNode;
+export interface MoveNodeAction {
+  readonly type: 'move node';
+  readonly node: GraphNode;
+  readonly position: Position;
 }
 
-interface MoveNodeAction extends GraphActionBase {
-  type: 'move node';
-  node: GraphNode;
-  position: Position;
+export interface StartPortConnectionDragAction {
+  readonly type: 'start port connection drag';
+  readonly origin: Port;
+  readonly interaction: Interact.Interaction;
+  readonly interactable: Interact.Interactable;
 }
 
-interface DragPortConnectionAction extends GraphActionBase {
-  type: 'drag port connection';
-  origin: Port;
-  cursor: Position;
+export interface DragPortConnectionAction {
+  readonly type: 'drag port connection';
+  readonly origin: Port;
+  readonly cursor: Position;
 }
 
-interface ReleasePortConnectionAction extends GraphActionBase {
-  type: 'release port connection';
-  origin: Port;
+export interface ReleasePortConnectionAction {
+  readonly type: 'release port connection';
+  readonly origin: Port;
 }
 
-interface ConnectPortAction extends GraphActionBase {
-  type: 'connect port';
-  output: OutputPort;
-  input: InputPort;
+export interface ConnectPortAction {
+  readonly type: 'connect port';
+  readonly droppedOn: Port;
+  readonly from: Port;
 }
 
-interface DisconnectPortAction extends GraphActionBase {
-  type: 'disconnect port';
-  output: OutputPort;
-  input: InputPort;
+export interface DisconnectPortAction {
+  readonly type: 'disconnect port';
+  readonly output: OutputPort;
+  readonly input: InputPort;
 }
 
 export type GraphAction
   = AddNodeAction
   | RemoveNodeAction
   | MoveNodeAction
+  | StartPortConnectionDragAction
   | DragPortConnectionAction
   | ReleasePortConnectionAction
   | ConnectPortAction

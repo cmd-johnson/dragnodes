@@ -1,6 +1,6 @@
-import { Component, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Subject } from 'rxjs';
-import { map, takeUntil } from 'rxjs/operators';
+import { Component, OnDestroy, EventEmitter } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import { GraphService, GraphState } from '../../services/graph/graph.service';
 import { ResolvePortService } from '../../services/resolve-port/resolve-port.service';
@@ -17,12 +17,17 @@ export class GraphComponent implements OnDestroy {
   private unsubscribe = new Subject();
 
   graphState: GraphState;
+  visibleConnections = new EventEmitter<{ from: Position | OutputPort, to: Position | InputPort }[]>();
 
   private nodeCounter = 0;
 
   constructor(
     private graphService: GraphService
   ) {
+    graphService.visibleConnections.pipe(
+      takeUntil(this.unsubscribe)
+    ).subscribe(this.visibleConnections);
+
     graphService.state.pipe(
       takeUntil(this.unsubscribe)
     ).subscribe(s => this.graphState = s);
@@ -38,32 +43,17 @@ export class GraphComponent implements OnDestroy {
   }
 
   addNode() {
-    let node: GraphNode;
-    switch (this.nodeCounter % 5) {
-      case 0:
-        node = new GraphNode(`Node #${this.nodeCounter} (source)`);
-        node.addOutputs(new OutputPort('source', new BehaviorSubject(`hello from ${node.name}`)));
-        break;
-      case 1:
-      case 2:
-      case 3: {
-        node = new GraphNode(`Node #${this.nodeCounter} (transformer)`);
-        const input = new InputPort('sink');
-        const outputObservable = input.subject.pipe(map(v => `${v} → ${this.nodeCounter}`));
-        const output = new OutputPort('source', outputObservable);
+    const node = new GraphNode(`Node #${this.nodeCounter}`);
+    const outputCount = Math.floor(Math.random() * 3);
+    const inputCount = Math.floor(Math.random() * 5);
 
-        node.addOutputs(output);
-        node.addInputs(new InputPort('sink'));
-
-        break;
-      }
-      default: {
-        node = new GraphNode(`Node #${this.nodeCounter} (sink)`);
-        const input = new InputPort('sink');
-        input.subject.subscribe(v => console.log(`Node #${this.nodeCounter}: ${v}`));
-        node.addInputs(input);
-      }
+    for (let i = 0; i < outputCount; i++) {
+      node.addOutput(new OutputPort(`output ${i}`, new Subject()));
     }
+    for (let i = 0; i < inputCount; i++) {
+      node.addInput(new InputPort(`input ${i}`));
+    }
+
     this.nodeCounter++;
 
     this.graphService.addNode(node);
