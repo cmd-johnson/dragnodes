@@ -1,11 +1,12 @@
-import { Directive, ElementRef, Input, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
+import { Directive, ElementRef, Input, AfterViewInit, OnDestroy } from '@angular/core';
 import interact from 'interactjs';
 import { Subject, EMPTY, ReplaySubject } from 'rxjs';
-import { map, switchMap, takeUntil, filter } from 'rxjs/operators';
+import { map, switchMap, takeUntil, filter, withLatestFrom } from 'rxjs/operators';
 
-import { Port } from '../../data/graph-types';
+import { Port, OutputPort, InputPort, isSameNode, isSamePort } from '../../data/graph-types';
 import { GraphService } from '../../services/graph/graph.service';
 import { ResolvePortService } from '../../services/resolve-port/resolve-port.service';
+import { ConnectPortAction } from '../../services/graph/graph-actions';
 
 interface DragEvent {
   originPort: Port;
@@ -33,9 +34,9 @@ export class NodePortDirective implements AfterViewInit, OnDestroy {
 
   public get htmlElement() { return this.element.nativeElement; }
 
-  @HostListener('mousedown') onMouseDown() {
-    console.log('down: PORT');
-  }
+  private connectedTo?: NodePortDirective = null;
+
+  private interactable: Interact.Interactable;
 
   constructor(
     private element: ElementRef,
@@ -62,11 +63,42 @@ export class NodePortDirective implements AfterViewInit, OnDestroy {
     this.moveEvents.pipe(
       filter(({ interaction }) => interaction.pointerIsDown && !interaction.interacting()),
       takeUntil(this.unsubscribe)
-    ).subscribe(({ interaction, interactable }) => graphService.startPortConnectionDrag(this.port, interaction, interactable));
+    ).subscribe(({ interaction, interactable }) => {
+      const startPort = this.connectedTo === null ? this : this.connectedTo;
+      console.log('still connected to', this.connectedTo);
+      startPort.startDrag(interaction, interactable);
+    });
+
+    graphService.actions.pipe(
+      filter(({ type }) => type === 'connect port'),
+      withLatestFrom(graphService.state),
+      takeUntil(this.unsubscribe)
+    ).subscribe(([ a, s ]) => {
+      const { output, input } = a as ConnectPortAction;
+      if (isSameNode(output.parent, input.parent)) {
+        return;
+      }
+      if (output === this.port) {
+        this.connectedTo = resolvePortService.getPortDirective(input);
+      } else if (input === this.port) {
+        this.connectedTo = resolvePortService.getPortDirective(output);
+      }
+    });
+
+    graphService.actions.pipe(
+      filter(a => a.type === 'disconnect port' && (isSamePort(a.input, this.port) || isSamePort(a.output, this.port))),
+      takeUntil(this.unsubscribe)
+    ).subscribe(() => this.connectedTo = null);
+
+    graphService.actions.pipe(
+      filter(a => a.type === 'remove node' && !!this.connectedTo && isSameNode(a.node, this.connectedTo.port.parent)),
+      takeUntil(this.unsubscribe)
+    ).subscribe(() => this.connectedTo = null);
   }
 
   ngAfterViewInit() {
     const int = interact(this.htmlElement);
+    this.interactable = int;
 
     int.draggable({
       manualStart: true,
@@ -82,23 +114,30 @@ export class NodePortDirective implements AfterViewInit, OnDestroy {
         // Adding the originPort property to the event makes it appear in the dropzone's ondrop event.
         e.originPort = this.port;
         this.dragging.next(false);
+        if (this.connectedTo) {
+          if (this.port instanceof OutputPort) {
+            this.graphService.disconnectPorts(this.port, this.connectedTo.port as InputPort);
+          } else {
+            this.graphService.disconnectPorts(this.connectedTo.port as OutputPort, this.port);
+          }
+        }
       }
     });
     int.on('move', (e: MoveEvent) => {
-      console.log(e);
       this.moveEvents.next(e);
     });
 
     int.dropzone({
+      ondragleave: console.log,
       ondrop: e => {
         const dragEvent = e.dragEvent as DragEvent;
         const other = dragEvent.originPort;
-        this.graphService.connectPorts(this.port, other);
+        if (this.port instanceof OutputPort && other instanceof InputPort) {
+          this.graphService.connectPorts(this.port, other);
+        } else if (this.port instanceof InputPort && other instanceof OutputPort) {
+          this.graphService.connectPorts(other, this.port);
+        }
       }
-    });
-
-    int.on('dragend', e => {
-      console.log(e);
     });
 
     this.resolvePortService.registerPort(this.port, this);
@@ -112,6 +151,7 @@ export class NodePortDirective implements AfterViewInit, OnDestroy {
   }
 
   startDrag(interaction: Interact.Interaction, interactable: Interact.Interactable) {
-    interaction.start({ name: 'drag' }, interactable, this.htmlElement);
+    console.log('start drag', interaction, this.interactable, this.htmlElement);
+    interaction.start({ name: 'drag' }, this.interactable, this.htmlElement);
   }
 }

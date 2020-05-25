@@ -21,7 +21,7 @@ export class ConnectionsComponent implements OnDestroy {
   @Input()
   visibleConnections: { from: Position | OutputPort, to: Position | InputPort }[];
 
-  private get ownBounds(): DOMRect {
+  private get ownBounds(): { top: number, left: number } {
     return (this.element.nativeElement as HTMLElement).getBoundingClientRect();
   }
 

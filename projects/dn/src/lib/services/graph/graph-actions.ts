@@ -17,13 +17,6 @@ export interface MoveNodeAction {
   readonly position: Position;
 }
 
-export interface StartPortConnectionDragAction {
-  readonly type: 'start port connection drag';
-  readonly origin: Port;
-  readonly interaction: Interact.Interaction;
-  readonly interactable: Interact.Interactable;
-}
-
 export interface DragPortConnectionAction {
   readonly type: 'drag port connection';
   readonly origin: Port;
@@ -37,8 +30,8 @@ export interface ReleasePortConnectionAction {
 
 export interface ConnectPortAction {
   readonly type: 'connect port';
-  readonly droppedOn: Port;
-  readonly from: Port;
+  readonly output: Port;
+  readonly input: Port;
 }
 
 export interface DisconnectPortAction {
@@ -51,7 +44,6 @@ export type GraphAction
   = AddNodeAction
   | RemoveNodeAction
   | MoveNodeAction
-  | StartPortConnectionDragAction
   | DragPortConnectionAction
   | ReleasePortConnectionAction
   | ConnectPortAction

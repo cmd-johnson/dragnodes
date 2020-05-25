@@ -43,15 +43,21 @@ export class GraphComponent implements OnDestroy {
   }
 
   addNode() {
-    const node = new GraphNode(`Node #${this.nodeCounter}`);
     const outputCount = Math.floor(Math.random() * 3);
     const inputCount = Math.floor(Math.random() * 5);
 
+    const node: GraphNode = {
+      name: `Node #${this.nodeCounter}`,
+      inputs: [],
+      outputs: [],
+      position: { x: 0, y: 0 }
+    };
+
     for (let i = 0; i < outputCount; i++) {
-      node.addOutput(new OutputPort(`output ${i}`, new Subject()));
+      node.outputs.push(new OutputPort(`output ${i}`, node));
     }
     for (let i = 0; i < inputCount; i++) {
-      node.addInput(new InputPort(`input ${i}`));
+      node.inputs.push(new InputPort(`input ${i}`, node));
     }
 
     this.nodeCounter++;
@@ -67,4 +73,7 @@ export class GraphComponent implements OnDestroy {
     this.graphService.moveNode(node, position);
   }
 
+  nodeId(_, item: GraphNode) {
+    return item.name;
+  }
 }

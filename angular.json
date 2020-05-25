@@ -30,7 +30,8 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "vendorSourceMap": true
           },
           "configurations": {
             "production": {
@@ -134,7 +135,8 @@
           "builder": "@angular-devkit/build-ng-packagr:build",
           "options": {
             "tsConfig": "projects/dn/tsconfig.lib.json",
-            "project": "projects/dn/ng-package.json"
+            "project": "projects/dn/ng-package.json",
+            "vendorSourceMap": true
           },
           "configurations": {
             "production": {
