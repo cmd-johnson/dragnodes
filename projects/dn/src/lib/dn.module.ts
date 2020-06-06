@@ -1,26 +1,25 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+
 import { GraphComponent } from './components/graph/graph.component';
-import { NodePortDirective } from './directives/node-port/node-port.directive';
+import { NodeDirective } from './directives/node/node.directive';
 import { ConnectionsComponent } from './components/graph/connections/connections.component';
-import { NodeComponent } from './components/graph/node/node.component';
+import { NodePortDirective } from './directives/node-port/node-port';
 
 @NgModule({
   declarations: [
     GraphComponent,
-    NodePortDirective,
     ConnectionsComponent,
-    NodeComponent
+    NodeDirective,
+    NodePortDirective
   ],
   imports: [
     CommonModule
   ],
   exports: [
-    GraphComponent
+    GraphComponent,
+    NodeDirective,
+    NodePortDirective
   ]
 })
 export class DnModule { }
-
-import { enableMapSet, enablePatches } from 'immer';
-enableMapSet();
-enablePatches();

@@ -1,8 +1,2 @@
-<div class="controls">
-  <button (click)="addNode()">Add Node</button>
-</div>
-<div class="nodes" id="node-container">
-  <dn-node *ngFor="let n of graphState.nodes; trackBy: nodeId" [node]="n" (deleteNode)="deleteNode(n)" (nodeMoved)="nodeMoved(n, $event)" [style.transform]="getNodeTransform(n)"></dn-node>
-  <dn-connections class="connections" [visibleConnections]="visibleConnections | async">
-  </dn-connections>
-</div>
+<ng-content></ng-content>
+<dn-connections class="connections" [visibleConnections]="visibleConnections | async"></dn-connections>

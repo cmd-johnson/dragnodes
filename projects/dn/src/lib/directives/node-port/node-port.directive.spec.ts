@@ -1,4 +1,4 @@
-import { NodePortDirective } from './node-port.directive';
+//import { NodePortDirective } from './node-port.directive';
 
 describe('NodePortDirective', () => {
   /*it('should create an instance', () => {

@@ -2,8 +2,6 @@ import { Component, OnDestroy, ElementRef, Input } from '@angular/core';
 import { Subject } from 'rxjs';
 
 import { Position } from '../../../data/position';
-import { OutputPort, InputPort } from '../../../data/graph-types';
-import { ResolvePortService } from '../../../services/resolve-port/resolve-port.service';
 
 @Component({
   selector: 'dn-connections',
@@ -19,15 +17,14 @@ export class ConnectionsComponent implements OnDestroy {
   }
 
   @Input()
-  visibleConnections: { from: Position | OutputPort, to: Position | InputPort }[];
+  visibleConnections: { from: Position, to: Position }[];
 
   private get ownBounds(): { top: number, left: number } {
     return (this.element.nativeElement as HTMLElement).getBoundingClientRect();
   }
 
   constructor(
-    private element: ElementRef,
-    private resolvePortService: ResolvePortService
+    private element: ElementRef
   ) { }
 
   ngOnDestroy(): void {
@@ -39,10 +36,6 @@ export class ConnectionsComponent implements OnDestroy {
     const bounds = this.ownBounds;
 
     return (this.visibleConnections || [])
-      .map(({ from, to }) => ({
-        from: (from instanceof OutputPort) ? this.resolvePortService.getPosition(from) : from,
-        to: (to instanceof InputPort) ? this.resolvePortService.getPosition(to) : to
-      }))
       .map(({ from, to }) => ({
         from: { x: from.x - bounds.left, y: from.y - bounds.top },
         to: { x: to.x - bounds.left, y: to.y - bounds.top }

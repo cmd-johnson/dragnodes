@@ -1,34 +1,29 @@
-<!--<dn-node-area style="flex: 1 1 auto"></dn-node-area>-->
-<dn-graph style="flex: 1 1 auto"></dn-graph>
-<!--<div class="wrapper" style="user-select: none;">
-  <dn-draggable>
-    <div style="">
-      <div class="draggable" style="width: 200px; height: 100px; background: #1976D2; box-shadow: 0 0 12px -4px black; border-radius: 2px;">
-        <p style="margin: 0;">Drag me!</p>
-      </div>    
-    </div>
-  </dn-draggable>
-  <dn-draggable>
-    <div style="">
-      <div class="draggable" style="  width: 200px; height: 100px; background: #1976D2">
-        <p style="margin: 0;">Drag me!</p>
-      </div>    
-    </div>
-  </dn-draggable>
-  <dn-draggable>
-    <div style="">
-      <div class="draggable" style="  width: 200px; height: 100px; background: #1976D2">
-        <p style="margin: 0;">Drag me!</p>
+<dn-graph style="flex: 1 1 auto" [canConnectPorts]="canConnectPorts">
+  <button style="position: absolute;" (click)="addNode()">Add Node</button>
+  <div class="node" dnNode *ngFor="let node of nodes; trackBy: nodeId" [nodePosition]="node" (nodePositionChange)="onNodeMoved(node, $event)">
+    <div class="header">{{node.title}}</div>
+    <div class="ports">
+      <div class="inputs">
+        <div class="input">
+          <a style="pointer-events: all; cursor: pointer;" (click)="addInput(node)">Add Input</a>
+        </div>
+        <div class="input" *ngFor="let i of node.inputs; trackBy: trackPortId">
+          <div class="port" dnNodeInput [trackPortBy]="inputPortKey(node, i)"></div>
+          {{i.title}}
+          <a style="pointer-events: all; cursor: pointer;" (click)="removeInput(node, i)">&nbsp;&#x2715;</a>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="outputs">
+        <div class="output">
+          <a style="pointer-events: all; cursor: pointer;" (click)="addOutput(node)">Add Output</a>
+        </div>
+        <div class="output" *ngFor="let o of node.outputs; trackBy: trackPortId">
+          <a style="pointer-events: all; cursor: pointer;" (click)="removeOutput(node, o)">&#x2715;&nbsp;</a>
+          {{o.title}}
+          <div class="port" dnNodeOutput [trackPortBy]="outputPortKey(node, o)"></div>
+        </div>
       </div>
     </div>
-  </dn-draggable>
-  <div style="position: relative; display: block; width: fit-content; height: fit-content;" dnDraggable [dragAreaPadding]="24">
-    <div class="draggable" style="  width: 200px; height: 100px; background: #1976D2">
-      <p style="margin: 0;">Drag me!</p>
-    </div>    
   </div>
-  <div class="draggable" style="margin: 8px; padding: 8px; position: relative; display: block; width: 200px; height: 100px; background: #1976D2; box-shadow: 0 0 12px -4px black; border-radius: 2px;" dnDraggable>
-    <p style="margin: 0;">Drag me!</p>
-  </div>
-</div>
--->
+</dn-graph>
