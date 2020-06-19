@@ -1,0 +1,25 @@
+<ng-template #connection let-output="output" let-input="input">
+  <svg:g>
+    <path class="connection" [attr.d]="connectionPath(output, input)" />
+    <circle class="connector" [attr.cx]="output.x" [attr.cy]="output.y" r="4" />
+    <circle class="connector" [attr.cx]="input.x" [attr.cy]="input.y" r="4" />
+  </svg:g>
+</ng-template>
+
+<dn-graph [connectionSvg]="connection" (connected)="connectionAdded($event)">
+  <dn-connection *ngFor="let c of connections" [from]="c.from" [to]="c.to">
+    <!-- displayed at the center of the connection -->
+    <span>{{c.data | percent}}</span>
+  </dn-connection>
+  <div *ngFor="let n of nodes" [(nodeX)]="node.x" [(nodeY)]="node.y">
+    <span>{{n.name}}</span>
+    <div class="ports">
+      <div class="inputs">
+        <div *ngFor="let i of n.inputs" class="input" [dnInput]="getInputKey(i)">{{i.name}}</div>
+      </div>
+      <div class="outputs">
+        <div *ngFor="let o of n.outputs" class="output" [dnOutput]="getOutputKey(o)">{{o.name}}</div>
+      </div>
+    </div>
+  </div>
+</dn-graph>

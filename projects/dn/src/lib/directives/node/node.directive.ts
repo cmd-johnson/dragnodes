@@ -1,7 +1,8 @@
-import { Directive, AfterViewInit, OnDestroy, ElementRef, HostBinding, Input, Output, EventEmitter } from '@angular/core';
+import { Directive, Input, Output, EventEmitter, HostBinding, OnDestroy, AfterViewInit, ElementRef, ContentChildren, QueryList } from '@angular/core';
 import interact from 'interactjs';
 import { Subject } from 'rxjs';
-import { takeUntil, scan, startWith, distinctUntilChanged, throttleTime } from 'rxjs/operators';
+import { scan, takeUntil, startWith, distinctUntilChanged, throttleTime, share, pairwise, filter } from 'rxjs/operators';
+import { NodePortDirective } from '../node-port/node-port.directive';
 
 interface MoveNodeAction {
   type: 'move';
@@ -11,8 +12,17 @@ interface MoveNodeAction {
 
 interface SetNodePositionAction {
   type: 'set';
-  x?: number;
-  y?: number;
+  x: number;
+  y: number;
+}
+
+interface Pos {
+  x: number;
+  y: number;
+}
+
+interface DragEvent {
+  delta: Pos;
 }
 
 type NodePositionAction = MoveNodeAction | SetNodePositionAction;
@@ -20,87 +30,90 @@ type NodePositionAction = MoveNodeAction | SetNodePositionAction;
 @Directive({
   selector: '[dnNode]'
 })
-export class NodeDirective implements AfterViewInit, OnDestroy {
+export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDestroy {
   /** Emits when all subscriptions should be dropped at the end of the component's lifecycle. */
   private unsubscribe = new Subject();
 
   private nodePositionActions = new Subject<NodePositionAction>();
 
+  @ContentChildren(NodePortDirective, { descendants: true })
+  ports: QueryList<NodePortDirective<OutputKey, InputKey>>;
+
+  @HostBinding('style.transform')
+  cssTransform: string;
+
+  @HostBinding('style.transform.translate')
+  cssTranslate: string;
+
+  @HostBinding('style.position')
+  cssPosition = 'absolute';
+
+  @HostBinding('style.top')
+  cssTop: string;
+
+  @HostBinding('style.left')
+  cssLeft: string;
+
   @Input()
-  public set nodePosition(value: { x: number, y: number }) {
-    this.nodePositionActions.next({
-      type: 'set',
-      x: value.x,
-      y: value.y
-    });
+  public set nodePos({ x, y }: Pos) {
+    this.nodePositionActions.next({ type: 'set', x, y });
   }
 
   @Output()
-  public nodePositionChange = new EventEmitter<{ x: number, y: number}>();
-
-  // @HostBinding('style.transform')
-  // elementTransform: string;
-
-  @HostBinding('style.top')
-  elementTop: string;
-
-  @HostBinding('style.left')
-  elementLeft: string;
+  nodePosChange = new EventEmitter<Pos>();
 
   constructor(
     private element: ElementRef
   ) {
     const initialPosition = { x: 0, y: 0 };
     const nodePos = this.nodePositionActions.pipe(
-      scan(this.nodePosActionReducer, initialPosition)
+      scan(({ x, y }, action) => {
+        if (action.type === 'set') {
+          return { x: action.x, y: action.y };
+        } else {
+          return { x: x + action.dx, y: y + action.dy };
+        }
+      }, initialPosition),
+      share()
     );
 
     nodePos.pipe(
       startWith(initialPosition),
-      distinctUntilChanged((a, b) => a.x === b.x || a.y === b.y),
+      distinctUntilChanged((a, b) => a.x === b.x && a.y === b.y),
       throttleTime(1000 / 60, undefined, { leading: true, trailing: true }),
       takeUntil(this.unsubscribe)
     ).subscribe(({ x, y }) => {
-      // this.elementTransform = `translate(${x}px, ${y}px)`;
-      console.log('setting node position');
-      this.elementLeft = `${x}px`;
-      this.elementTop = `${y}px`;
+      this.cssTransform = `translate(${x}px, ${y}px)`;
+      /* this.cssLeft = `${x}px`;
+      this.cssTop = `${y}px`; */
     });
 
     nodePos.pipe(
       takeUntil(this.unsubscribe)
-    ).subscribe(this.nodePositionChange);
-  }
+    ).subscribe(this.nodePosChange);
 
-  private nodePosActionReducer(pos: { x: number, y: number }, action: NodePositionAction) {
-    switch (action.type) {
-      case 'set':
-        return {
-          x: action.x !== undefined ? action.x : pos.x,
-          y: action.y !== undefined ? action.y : pos.y
-        };
-      case 'move':
-        return {
-          x: pos.x + action.dx,
-          y: pos.y + action.dy
-        };
-    }
+    nodePos.pipe(
+      pairwise(),
+      filter(([a, b]) => a.x !== b.x || a.y !== b.y),
+      takeUntil(this.unsubscribe)
+    ).subscribe(([a, b]) => {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      if (this.ports) {
+        this.ports.forEach(p => p.movePortRect(dx, dy));
+      }
+    });
   }
 
   ngAfterViewInit(): void {
-    const interactable = interact(this.element.nativeElement);
-
-    interactable.draggable({
+    interact(this.element.nativeElement).draggable({
       modifiers: [
         interact.modifiers.restrictRect({
-          restriction: 'parent',
-          endOnly: true
+          restriction: 'parent'
         })
       ],
       autoScroll: true,
-      onmove: e => {
-        this.nodePositionActions.next({ type: 'move', dx: e.delta.x, dy: e.delta.y });
-      }
+      onmove: ({ delta: { x, y }}: DragEvent) => this.nodePositionActions.next({ type: 'move', dx: x, dy: y })
     });
   }
 
@@ -108,5 +121,4 @@ export class NodeDirective implements AfterViewInit, OnDestroy {
     this.unsubscribe.next();
     this.unsubscribe.complete();
   }
-
 }

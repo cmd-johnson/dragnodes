@@ -19,11 +19,16 @@
       "dn": [
         "dist/dn/dn",
         "dist/dn"
+      ],
+      "dn-old": [
+        "dist/dn-old/dn-old",
+        "dist/dn-old"
       ]
     }
   },
   "angularCompilerOptions": {
     "fullTemplateTypeCheck": true,
+    "strictTemplates": true,
     "strictInjectionParameters": true
   }
 }

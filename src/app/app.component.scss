@@ -8,7 +8,6 @@
 
 .node {
   position: absolute;
-  background: red;
 
   user-select: none;
   touch-action: none;
@@ -68,4 +67,10 @@
       }
     }
   }
+}
+
+.connection {
+  fill: none;
+  stroke: white;
+  stroke-width: 2px;
 }

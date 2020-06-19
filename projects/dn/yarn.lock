@@ -2,17 +2,14 @@
 # yarn lockfile v1
 
 
-"@types/lodash@^4.14.154":
-  version "4.14.154"
-  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.154.tgz#069e3c703fdb264e67be9e03b20a640bc0198ecc"
-  integrity sha512-VoDZIJmg3P8vPEnTldLvgA+q7RkIbVkbYX4k0cAVFzGAOQwUehVgRHgIr2/wepwivDst/rVRqaiBSjCXRnoWwQ==
+"@interactjs/types@1.9.19":
+  version "1.9.19"
+  resolved "https://registry.yarnpkg.com/@interactjs/types/-/types-1.9.19.tgz#f096eb395ca190995c083497c755b65be0a88677"
+  integrity sha512-PcaY5MmQTH5eiI525d57eB+/OH6V7utU5FfkbjfvYdFV2dE8NXjYlKiXOy7G0/Y08PyXPhge60TFaYOMYqmIUQ==
 
-immer@^6.0.5:
-  version "6.0.6"
-  resolved "https://registry.yarnpkg.com/immer/-/immer-6.0.6.tgz#ffd46c1976548fe3df0be671b7f8aaf620166623"
-  integrity sha512-KAo8XDbDcF59lDlKEFOhyssB/z6805ZvH/S3wqMPaTzLMFDUUu1Lq647LrUyuXzI36wMpzwZ83mMxwOXM961aA==
-
-lodash@^4.17.15:
-  version "4.17.15"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.15.tgz#b447f6670a0455bbfeedd11392eff330ea097548"
-  integrity sha512-8xOcRHvCjnocdS5cpwXQXVzmmh5e5+saE2QGoeQmbKmRS6J3VQppPOIt0MnmE+4xlZoumy0GPG0D0MVIQbNA1A==
+interactjs@^1.9.19:
+  version "1.9.19"
+  resolved "https://registry.yarnpkg.com/interactjs/-/interactjs-1.9.19.tgz#f3fabdeefb078eb6db4bbc7dcb405c90c2ad2b41"
+  integrity sha512-ChmOCu0MMUuwvag/WpmgH3sGTDZ5WwnUCPSXwc+gFKyTNVUs5HsSj+WBj0/hdA7cBwscMe24vergPcwrs8vLmQ==
+  dependencies:
+    "@interactjs/types" "1.9.19"

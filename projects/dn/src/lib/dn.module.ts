@@ -1,15 +1,18 @@
 import { NgModule } from '@angular/core';
+import { DnComponent } from './dn.component';
+import { GraphComponent } from './components/graph/graph.component';
+import { ConnectionComponent } from './components/connection/connection.component';
+import { NodeDirective } from './directives/node/node.directive';
+import { NodePortDirective } from './directives/node-port/node-port.directive';
 import { CommonModule } from '@angular/common';
 
-import { GraphComponent } from './components/graph/graph.component';
-import { NodeDirective } from './directives/node/node.directive';
-import { ConnectionsComponent } from './components/graph/connections/connections.component';
-import { NodePortDirective } from './directives/node-port/node-port';
+
 
 @NgModule({
   declarations: [
+    DnComponent,
     GraphComponent,
-    ConnectionsComponent,
+    ConnectionComponent,
     NodeDirective,
     NodePortDirective
   ],
@@ -17,7 +20,9 @@ import { NodePortDirective } from './directives/node-port/node-port';
     CommonModule
   ],
   exports: [
+    DnComponent,
     GraphComponent,
+    ConnectionComponent,
     NodeDirective,
     NodePortDirective
   ]

@@ -1,2 +1,20 @@
-<ng-content></ng-content>
-<dn-connections class="connections" [visibleConnections]="visibleConnections | async"></dn-connections>
+<ng-template #defaultConnectionSvg let-to="to" let-from="from">
+  <svg:g>
+    <path class="connection" [attr.d]="defaultConnectionPath(from, to)" />
+    <circle class="connector" [attr.cx]="from.x" [attr.cy]="from.y" r="4" />
+    <circle class="connector" [attr.cx]="to.x" [attr.cy]="to.y" r="4" />
+  </svg:g>
+</ng-template>
+
+<ng-content select=":not(dn-connection)"></ng-content>
+
+<div class="connections">
+  <div class="established">
+    <ng-content select="dn-connection"></ng-content>
+  </div>
+  <svg class="dragging">
+    <ng-container *ngFor="let d of draggedConnections">
+      <ng-container *ngTemplateOutlet="connectionSvg; context: d"></ng-container>
+    </ng-container>
+  </svg>
+</div>

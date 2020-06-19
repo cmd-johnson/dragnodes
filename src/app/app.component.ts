@@ -9,9 +9,8 @@ interface Output {
 }
 
 interface Node {
+  position: Pos;
   title: string;
-  x: number;
-  y: number;
   inputs: Input[];
   outputs: Output[];
 }
@@ -31,6 +30,17 @@ interface OutputKey {
 
 type PortKey = OutputKey | InputKey;
 
+interface Connection {
+  data: string;
+  from: OutputKey;
+  to: InputKey;
+}
+
+interface Pos {
+  x: number;
+  y: number;
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -40,6 +50,7 @@ export class AppComponent implements OnInit {
   title = 'dragnodes';
 
   nodes: Node[] = [];
+  connections: Connection[] = [];
 
   ngOnInit(): void {
     const stored = window.localStorage.getItem('nodes');
@@ -49,13 +60,13 @@ export class AppComponent implements OnInit {
       this.nodes = [
         {
           title: 'Node 1',
-          x: 0, y: 0,
+          position: { x: 0, y: 0 },
           inputs: [ { title: 'Input 1' }, { title: 'Input 2' } ],
           outputs: [ { title: 'Output 1' }, { title: 'Output 2' } ]
         },
         {
           title: 'Node 2',
-          x: 250, y: 0,
+          position: { x: 250, y: 0 },
           inputs: [ { title: 'Input 1' }, { title: 'Input 2' } ],
           outputs: [ { title: 'Output 1' }, { title: 'Output 2' } ]
         }
@@ -82,8 +93,8 @@ export class AppComponent implements OnInit {
   }
 
   onNodeMoved(node: Node, position: { x: number, y: number }) {
-    node.x = position.x;
-    node.y = position.y;
+    node.position.x = position.x;
+    node.position.y = position.y;
     this.saveNodes();
   }
 
@@ -147,8 +158,7 @@ export class AppComponent implements OnInit {
       title: `Node ${this.nodes.length}`,
       inputs: [],
       outputs: [],
-      x: 0,
-      y: 0
+      position: { x: 0, y: 0 }
     });
   }
 }
