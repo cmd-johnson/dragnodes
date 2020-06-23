@@ -1,4 +1,4 @@
-import { Component, Input, TemplateRef, AfterViewInit, ElementRef } from '@angular/core';
+import { Component, Input, TemplateRef, ElementRef } from '@angular/core';
 import { PortRegistryService } from '../../services/port-registry/port-registry.service';
 import { GraphComponent } from '../graph/graph.component';
 
@@ -18,16 +18,24 @@ export class ConnectionComponent<OutputKey, InputKey> {
   connectionSvg: TemplateRef<SVGElement> | 'default' = 'default';
 
   get svgContext() {
-    const output = this.portRegistry.getOutput(this.from);
-    const input = this.portRegistry.getInput(this.to);
+    const { dx, dy } = this.graph.graphOffset;
+
+    const output = this.portRegistry.getOutputRect(this.from);
+    const input = this.portRegistry.getInputRect(this.to);
 
     if (!output || !input) {
       return { from: { x: 0, y: 0 }, to: { x: 0, y: 0 } };
     }
 
     return {
-      from: { x: output.htmlRect.left + output.htmlRect.width / 2, y: output.htmlRect.top + output.htmlRect.height / 2 },
-      to: { x: input.htmlRect.left + input.htmlRect.width / 2, y: input.htmlRect.top + input.htmlRect.height / 2 }
+      from: {
+        x: output.left + output.width / 2 + dx,
+        y: output.top + output.height / 2 + dy
+      },
+      to: {
+        x: input.left + input.width / 2 + dx,
+        y: input.top + input.height / 2 + dy
+      }
     };
   }
 

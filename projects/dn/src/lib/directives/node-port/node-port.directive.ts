@@ -3,6 +3,8 @@ import interact from 'interactjs';
 import { PortRegistryService } from '../../services/port-registry/port-registry.service';
 import { DraggedConnectionsService } from '../../services/dragged-connections/dragged-connections.service';
 import { NodeDirective } from '../node/node.directive';
+import { takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 
 interface InteractMoveEvent {
   interaction: Interact.Interaction;
@@ -35,6 +37,9 @@ const unassignedSymbol = Symbol('not assigned');
   selector: '[dnOutput], [dnInput]'
 })
 export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, OnDestroy {
+  /** Emits when all subscriptions should be dropped at the end of the component's lifecycle. */
+  private unsubscribe = new Subject();
+
   /**
    * Captures the output key when the directive is used as [dnOutput]="key".
    *
@@ -172,6 +177,7 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
   private interactable: Interact.Interactable;
 
   constructor(
+    private node: NodeDirective<OutputKey, InputKey>,
     private elementRef: ElementRef,
     private portRegistry: PortRegistryService<OutputKey, InputKey>,
     private draggedConnections: DraggedConnectionsService<OutputKey, InputKey>
@@ -188,6 +194,10 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
     } else if (this.isInput) {
       this.portRegistry.registerInput(this.inputKey as InputKey, this);
     }
+
+    this.node.$portPositionsInvalidated.pipe(
+      takeUntil(this.unsubscribe)
+    ).subscribe(() => this.invalidatePosition());
 
     this.interactable = interact(this.elementRef.nativeElement);
 
@@ -258,6 +268,9 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
     } else {
       this.portRegistry.unregisterInput(this.inputKey as InputKey);
     }
+
+    this.unsubscribe.next();
+    this.unsubscribe.complete();
   }
 
   private startDrag(interaction: Interact.Interaction) {

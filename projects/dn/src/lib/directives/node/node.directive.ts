@@ -1,8 +1,9 @@
 import { Directive, Input, Output, EventEmitter, HostBinding, OnDestroy, AfterViewInit, ElementRef, ContentChildren, QueryList } from '@angular/core';
 import interact from 'interactjs';
-import { Subject } from 'rxjs';
-import { scan, takeUntil, startWith, distinctUntilChanged, throttleTime, share, pairwise, filter } from 'rxjs/operators';
-import { NodePortDirective } from '../node-port/node-port.directive';
+import { Subject, Observable } from 'rxjs';
+import { scan, takeUntil, startWith, distinctUntilChanged, throttleTime, share, pairwise, filter, mapTo, map } from 'rxjs/operators';
+// import { NodePortDirective } from '../node-port/node-port.directive';
+import { GraphComponent } from '../../components/graph/graph.component';
 
 interface MoveNodeAction {
   type: 'move';
@@ -36,8 +37,10 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
 
   private nodePositionActions = new Subject<NodePositionAction>();
 
-  @ContentChildren(NodePortDirective, { descendants: true })
-  ports: QueryList<NodePortDirective<OutputKey, InputKey>>;
+  // @ContentChildren(NodePortDirective, { descendants: true })
+  // ports: QueryList<NodePortDirective<OutputKey, InputKey>>;
+  @ContentChildren('[dnNodeInput], [dnNodeOutput]', { descendants: true })
+  ports: QueryList<HTMLElement>;
 
   @HostBinding('style.transform')
   cssTransform: string;
@@ -54,6 +57,8 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
   @HostBinding('style.left')
   cssLeft: string;
 
+  public $portPositionsInvalidated = new Subject();
+
   @Input()
   public set nodePos({ x, y }: Pos) {
     this.nodePositionActions.next({ type: 'set', x, y });
@@ -62,7 +67,10 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
   @Output()
   nodePosChange = new EventEmitter<Pos>();
 
+  public $nodeMoved: Observable<{ dx: number, dy: number }>;
+
   constructor(
+    private graph: GraphComponent<OutputKey, InputKey>,
     private element: ElementRef
   ) {
     const initialPosition = { x: 0, y: 0 };
@@ -92,7 +100,15 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
       takeUntil(this.unsubscribe)
     ).subscribe(this.nodePosChange);
 
-    nodePos.pipe(
+    this.$nodeMoved = nodePos.pipe(
+      pairwise(),
+      filter(([a, b]) => a.x !== b.x || a.y !== b.y),
+      map(([a, b]) => ({ dx: b.x - a.x, dy: b.y - a.y })),
+      share(),
+      takeUntil(this.unsubscribe)
+    );
+
+    /*nodePos.pipe(
       pairwise(),
       filter(([a, b]) => a.x !== b.x || a.y !== b.y),
       takeUntil(this.unsubscribe)
@@ -102,10 +118,11 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
       if (this.ports) {
         this.ports.forEach(p => p.movePortRect(dx, dy));
       }
-    });
+    });*/
   }
 
   ngAfterViewInit(): void {
+    this.ports.changes.subscribe(() => console.log('node ports changed', this.ports.toArray()));
     interact(this.element.nativeElement).draggable({
       modifiers: [
         interact.modifiers.restrictRect({
@@ -115,6 +132,11 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
       autoScroll: true,
       onmove: ({ delta: { x, y }}: DragEvent) => this.nodePositionActions.next({ type: 'move', dx: x, dy: y })
     });
+
+    this.ports.changes.pipe(
+      mapTo(void 0),
+      takeUntil(this.unsubscribe)
+    ).subscribe(this.$portPositionsInvalidated);
   }
 
   ngOnDestroy(): void {
