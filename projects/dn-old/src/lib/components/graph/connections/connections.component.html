@@ -1,7 +1,0 @@
-<svg class="connections">
-  <ng-container *ngFor="let c of connections">
-    <path class="connection" [attr.d]="c.path" />
-    <circle class="connector" [attr.cx]="c.from.x" [attr.cy]="c.from.y" r="4" />
-    <circle class="connector" [attr.cx]="c.to.x" [attr.cy]="c.to.y" r="4" />
-  </ng-container>
-</svg>
