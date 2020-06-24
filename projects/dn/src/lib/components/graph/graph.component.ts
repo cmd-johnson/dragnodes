@@ -1,6 +1,18 @@
-import { Component, Input, TemplateRef, Output, EventEmitter, ViewChild, AfterViewInit } from '@angular/core';
+import {
+  Component, AfterViewInit, OnDestroy,
+  Input, Output,
+  ViewChild, ContentChildren,
+  TemplateRef, QueryList,
+  EventEmitter,
+  ChangeDetectorRef,
+  ElementRef
+} from '@angular/core';
 import { PortRegistryService } from '../../services/port-registry/port-registry.service';
 import { DraggedConnectionsService } from '../../services/dragged-connections/dragged-connections.service';
+import { NodeDirective } from '../../directives/node/node.directive';
+import { NodePortDirective } from '../../directives/node-port/node-port.directive';
+import { Subject, bindCallback } from 'rxjs';
+import { takeUntil, throttleTime, share } from 'rxjs/operators';
 
 interface Pos {
   x: number;
@@ -28,10 +40,15 @@ function getCenter(rect: { top: number, left: number, width: number, height: num
     DraggedConnectionsService
   ]
 })
-export class GraphComponent<OutputKey, InputKey> implements AfterViewInit {
+export class GraphComponent<OutputKey, InputKey> implements AfterViewInit, OnDestroy {
+  /** Emits when all subscriptions should be dropped at the end of the component's lifecycle. */
+  private unsubscribe = new Subject();
 
   @ViewChild('defaultConnectionSvg')
   private defaultConnectionSvg: TemplateRef<SVGElement>;
+
+  @ContentChildren(NodePortDirective, { descendants: true })
+  private childPorts: QueryList<NodeDirective<OutputKey, InputKey>>;
 
   @Input()
   connectionSvg: TemplateRef<SVGElement>;
@@ -42,31 +59,79 @@ export class GraphComponent<OutputKey, InputKey> implements AfterViewInit {
   get draggedConnections(): DraggedConnection[] {
     return [
       ...this.draggedConnectionsService.draggedOutputs.map(({ output, cursor }) => ({
-        from: getCenter(this.portRegistry.getOutput(output).htmlRect),
-        to: cursor
+        from: getCenter(this.portRegistry.getOutputRect(output)),
+        to: { x: cursor.x + this.portRegistry.graphOffset.dx, y: cursor.y + this.portRegistry.graphOffset.dy }
       })),
       ...this.draggedConnectionsService.draggedInputs.map(({ input, cursor }) => ({
-        from: cursor,
-        to: getCenter(this.portRegistry.getInput(input).htmlRect)
+        from: { x: cursor.x + this.portRegistry.graphOffset.dx, y: cursor.y + this.portRegistry.graphOffset.dy },
+        to: getCenter(this.portRegistry.getInputRect(input))
       }))
     ];
   }
 
-  constructor(
-    private portRegistry: PortRegistryService<OutputKey, InputKey>,
-    private draggedConnectionsService: DraggedConnectionsService<OutputKey, InputKey>
-  ) { }
-
-  ngAfterViewInit(): void {
-    if (!this.connectionSvg) {
-      this.connectionSvg = this.defaultConnectionSvg;
-    }
+  public get graphOffset(): { dx: number, dy: number } {
+    const { top, left } = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+    const offset = { dx: -left + scrollLeft, dy: -top + scrollTop };
+    return offset;
   }
 
-  defaultConnectionPath({ x: fx, y: fy }: Pos, { x: tx, y: ty }: Pos): string {
-    const dx = tx - fx;
-    const dy = ty - fy;
+  constructor(
+    private portRegistry: PortRegistryService<OutputKey, InputKey>,
+    private draggedConnectionsService: DraggedConnectionsService<OutputKey, InputKey>,
+    private element: ElementRef,
+    private changeDetector: ChangeDetectorRef
+  ) {
+    requestAnimationFrame(() => {
+      console.log('requestAnimationFrame: element is', !!this.element ? this.element.nativeElement : 'undef');
+      if (!!this.element) {
+        console.log('requestAnimationFrame:', (this.element.nativeElement as HTMLElement).getBoundingClientRect());
+      }
+    });
+  }
+
+  ngAfterViewInit(): void {
+    console.log('ngAfterViewInit:', (this.element.nativeElement as HTMLElement).getBoundingClientRect());
+
+    if (!this.connectionSvg) {
+      /*
+       * Wait until the next change detection cycle to update the value to prevent
+       * ExpressionChangedAfterItHasBeenCheckedErrors in development mode.
+       */
+      setTimeout(() => this.connectionSvg = this.defaultConnectionSvg);
+    }
+
+    // Manually trigger change detection to fix port connections not updating immediately when dynamically adding or removing ports
+    this.childPorts.changes.pipe(
+      takeUntil(this.unsubscribe)
+    ).subscribe(() => setTimeout(() => this.changeDetector.detectChanges()));
+
+    // const ownRect = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
+    // this.portRegistry.graphOffset = { dx: -ownRect.left, dy: -ownRect.top };
+
+    /*const resizeTest = () => {
+      requestAnimationFrame(() => {
+        const el = this.element.nativeElement as HTMLElement;
+        console.log('animation frame', (this.element.nativeElement));
+        resizeTest();
+      });
+    };
+    resizeTest();*/
+  }
+
+  /**
+   * Builds a bezier curve with a handle right of the output and one left of the input.
+   */
+  defaultConnectionPath(from: Pos, to: Pos): string {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
     const handleLength = Math.sqrt(dx * dx + dy * dy) / 2;
-    return `M${fx},${fy} C${fx + handleLength},${fy} ${tx - handleLength},${ty} ${tx},${ty}`;
+    return `M${from.x},${from.y} C${from.x + handleLength},${from.y} ${to.x - handleLength},${to.y} ${to.x},${to.y}`;
+  }
+
+  ngOnDestroy(): void {
+    this.unsubscribe.next();
+    this.unsubscribe.complete();
   }
 }
