@@ -176,8 +176,11 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
    */
   private interactable: Interact.Interactable;
 
+  public portOffset: { x: number, y: number };
+  public portSize: { width: number, height: number };
+
   constructor(
-    private node: NodeDirective<OutputKey, InputKey>,
+    public node: NodeDirective<OutputKey, InputKey>,
     private elementRef: ElementRef,
     private portRegistry: PortRegistryService<OutputKey, InputKey>,
     private draggedConnections: DraggedConnectionsService<OutputKey, InputKey>
@@ -186,6 +189,14 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
   ngAfterViewInit(): void {
     if (this.isOutput === this.isInput) {
       throw new Error('A node port cannot be an input and output at the same time. Use either [dnOutput] or [dnInput], not both.');
+    }
+
+    {
+      const { x: nx, y: ny } = this.node.clientPos;
+      const { left: px, left: py, width, height } = (this.elementRef.nativeElement as HTMLElement).getBoundingClientRect();
+      this.portOffset = { x: px - nx, y: py - ny };
+      this.portSize = { width, height };
+      console.log(`Calculated position relative to node `)
     }
 
     // Register this port with its key at the portRegistry for fast lookup

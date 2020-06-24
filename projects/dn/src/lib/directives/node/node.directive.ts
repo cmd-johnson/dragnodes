@@ -64,10 +64,17 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
     this.nodePositionActions.next({ type: 'set', x, y });
   }
 
+  public nodePosition: Pos;
+
   @Output()
   nodePosChange = new EventEmitter<Pos>();
 
   public $nodeMoved: Observable<{ dx: number, dy: number }>;
+
+  public get clientPos(): Pos {
+    const { top: y, left: x } = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
+    return { x, y };
+  }
 
   constructor(
     private graph: GraphComponent<OutputKey, InputKey>,
@@ -91,9 +98,10 @@ export class NodeDirective<OutputKey, InputKey> implements AfterViewInit, OnDest
       throttleTime(1000 / 60, undefined, { leading: true, trailing: true }),
       takeUntil(this.unsubscribe)
     ).subscribe(({ x, y }) => {
+      this.nodePosition = { x, y };
       this.cssTransform = `translate(${x}px, ${y}px)`;
-      /* this.cssLeft = `${x}px`;
-      this.cssTop = `${y}px`; */
+      // this.cssLeft = `${x}px`;
+      // this.cssTop = `${y}px`;
     });
 
     nodePos.pipe(

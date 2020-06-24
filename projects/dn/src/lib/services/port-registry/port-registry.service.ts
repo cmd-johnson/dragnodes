@@ -19,15 +19,29 @@ export class PortRegistryService<OutputKey, InputKey> {
   }
 
   public getOutputRect(key: OutputKey) {
+    return { left: 0, top: 0, width: 10, height: 10 };
     const output = this.getOutput(key);
-    if (!output) { return undefined; }
-    return moveRect(output.htmlRect, this.graphOffset.dx, this.graphOffset.dy);
+    if (!output || !output.node || !output.node.nodePosition || !output.portOffset || !output.portSize) { return undefined; }
+    return {
+      left: output.node.nodePosition.x + output.portOffset.x,
+      top: output.node.nodePosition.y + output.portOffset.y,
+      width: output.portSize.width,
+      height: output.portSize.height
+    };
+    // return moveRect(output.htmlRect, this.graphOffset.dx, this.graphOffset.dy);
   }
 
   public getInputRect(key: InputKey) {
+    return { left: 0, top: 0, width: 10, height: 10 };
     const input = this.getInput(key);
-    if (!input) { return undefined; }
-    return moveRect(input.htmlRect, this.graphOffset.dx, this.graphOffset.dy);
+    if (!input || !input.node || !input.node.nodePosition || !input.portOffset || !input.portSize) { return undefined; }
+    return {
+      left: input.node.nodePosition.x + input.portOffset.x,
+      top: input.node.nodePosition.y + input.portOffset.y,
+      width: input.portSize.width,
+      height: input.portSize.height
+    };
+    // return moveRect(input.htmlRect, this.graphOffset.dx, this.graphOffset.dy);
   }
 
   public registerOutput(key: OutputKey, directive: NodePortDirective<OutputKey, InputKey>) {

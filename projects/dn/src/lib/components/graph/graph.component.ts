@@ -82,9 +82,18 @@ export class GraphComponent<OutputKey, InputKey> implements AfterViewInit, OnDes
     private draggedConnectionsService: DraggedConnectionsService<OutputKey, InputKey>,
     private element: ElementRef,
     private changeDetector: ChangeDetectorRef
-  ) { }
+  ) {
+    requestAnimationFrame(() => {
+      console.log('requestAnimationFrame: element is', !!this.element ? this.element.nativeElement : 'undef');
+      if (!!this.element) {
+        console.log('requestAnimationFrame:', (this.element.nativeElement as HTMLElement).getBoundingClientRect());
+      }
+    });
+  }
 
   ngAfterViewInit(): void {
+    console.log('ngAfterViewInit:', (this.element.nativeElement as HTMLElement).getBoundingClientRect());
+
     if (!this.connectionSvg) {
       /*
        * Wait until the next change detection cycle to update the value to prevent
@@ -100,6 +109,15 @@ export class GraphComponent<OutputKey, InputKey> implements AfterViewInit, OnDes
 
     // const ownRect = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
     // this.portRegistry.graphOffset = { dx: -ownRect.left, dy: -ownRect.top };
+
+    /*const resizeTest = () => {
+      requestAnimationFrame(() => {
+        const el = this.element.nativeElement as HTMLElement;
+        console.log('animation frame', (this.element.nativeElement));
+        resizeTest();
+      });
+    };
+    resizeTest();*/
   }
 
   /**

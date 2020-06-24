@@ -17,6 +17,20 @@
           "path": "${workspaceFolder}/projects"
         }
       ]
+    },
+    {
+      "type": "firefox",
+      "request": "attach",
+      "reAttach": true,
+      "name": "Attach localhost",
+      "url": "http://localhost:4200",
+      "webRoot": "${workspaceFolder}",
+      "pathMappings": [
+        {
+          "url": "webpack:///projects",
+          "path": "${workspaceFolder}/projects"
+        }
+      ]
     }
   ]
 }
