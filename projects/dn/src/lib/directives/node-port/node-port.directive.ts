@@ -1,42 +1,50 @@
 import { Directive, Input, ElementRef, AfterViewInit, Output, EventEmitter, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import interact from 'interactjs';
+
+import { Pos } from '../../data/pos';
+import { NodeDirective } from '../node/node.directive';
 import { PortRegistryService } from '../../services/port-registry/port-registry.service';
 import { DraggedConnectionsService } from '../../services/dragged-connections/dragged-connections.service';
-import { NodeDirective } from '../node/node.directive';
-import { takeUntil } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { Rect } from '../../data/rect';
 
+/** Partial type of move events from interactjs. */
 interface InteractMoveEvent {
   interaction: Interact.Interaction;
 }
 
+/** Partial type of drag events from interactjs. */
 interface InteractDragEvent {
-  client: { x: number, y: number };
+  client: Pos;
 }
 
+/** Partial type of move events from interactjs with attached custom output data. */
 const outputSymbol = Symbol('DN Output Key');
 interface InteractOutputDragEndEvent<OutputKey> {
   [outputSymbol]: OutputKey;
 }
 
+/** Partial type of move events from interactjs with attached custom input data. */
 const inputSymbol = Symbol('DN Input Key');
 interface InteractInputDragEndEvent<InputKey> {
   [inputSymbol]: InputKey;
 }
 
-type InteractDragEndEvent<OutputKey, InputKey>
-  = InteractOutputDragEndEvent<OutputKey>
-  | InteractInputDragEndEvent<InputKey>
+type InteractDragEndEvent<PortKey>
+  = InteractOutputDragEndEvent<PortKey>
+  | InteractInputDragEndEvent<PortKey>
   ;
 
-type OutputOrInput<OutputKey, InputKey> = ({ output: OutputKey } | { input: InputKey });
+type OutputOrInput<PortKey> = ({ output: PortKey } | { input: PortKey });
 
+/** Symbol used to determine if @Input properties were never assigned to. */
 const unassignedSymbol = Symbol('not assigned');
 
 @Directive({
   selector: '[dnOutput], [dnInput]'
 })
-export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, OnDestroy {
+export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
   /** Emits when all subscriptions should be dropped at the end of the component's lifecycle. */
   private unsubscribe = new Subject();
 
@@ -55,7 +63,7 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
    * only accept connections from [dnInput]s.
    */
   @Input('dnOutput')
-  outputKey: OutputKey | typeof unassignedSymbol = unassignedSymbol;
+  outputKey: PortKey | typeof unassignedSymbol = unassignedSymbol;
 
   /**
    * True when [dnOutput] was used to apply this directive to an element.
@@ -70,7 +78,7 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
    * Using [dnInput] marks this directive as an input port, meaning it only accepts connections from [dnOutput]s.
    */
   @Input('dnInput')
-  inputKey: InputKey | typeof unassignedSymbol = unassignedSymbol;
+  inputKey: PortKey | typeof unassignedSymbol = unassignedSymbol;
 
   /**
    * True when [dnInput] was used to apply this directive to an element.
@@ -79,18 +87,10 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
     return this.inputKey !== unassignedSymbol;
   }
 
-  private htmlRectCache: ClientRect | null = null;
-
-  /**
-   * Returns the client rect of the rendered element.
-   *
-   * Used to find the point at which to render connections that start or end on this port.
-   */
-  get htmlRect(): Readonly<ClientRect> {
-    if (!this.htmlRectCache) {
-      this.htmlRectCache = (this.elementRef.nativeElement as HTMLElement).getBoundingClientRect();
-    }
-    return this.htmlRectCache;
+  private portKeyCache?: PortKey = null;
+  /** Returns the input or output key, depending on which one was set. */
+  get portKey(): PortKey {
+    return this.portKeyCache || (this.portKeyCache = (this.isOutput ? this.outputKey : this.inputKey) as PortKey);
   }
 
   /**
@@ -127,7 +127,7 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
    * ```
    */
   @Input()
-  getDragOriginPort: (port: OutputOrInput<OutputKey, InputKey>) => OutputOrInput<OutputKey, InputKey> | false = (() => false as false);
+  getDragOriginPort: (port: OutputOrInput<PortKey>) => OutputOrInput<PortKey> | false = (() => false as false);
 
   /**
    * Triggers when a drag was started from this port.
@@ -154,7 +154,7 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
    *          be triggered
    */
   @Input()
-  canConnect: (output: OutputKey, input: InputKey) => boolean = (() => false);
+  canConnect: (output: PortKey, input: PortKey) => boolean = (() => false);
 
   /**
    * Triggers when a dragged connection was dropped on this port.
@@ -167,7 +167,7 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
    * involved are of opposite types (one input and one output).
    */
   @Output()
-  connect = new EventEmitter<{ output: OutputKey, input: InputKey }>();
+  connect = new EventEmitter<{ output: PortKey, input: PortKey }>();
 
   /**
    * The interactjs Interactable associated with this directive's host element.
@@ -176,14 +176,14 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
    */
   private interactable: Interact.Interactable;
 
-  public portOffset: { x: number, y: number };
-  public portSize: { width: number, height: number };
+  /** The rect of the port relative to the top left corner of its containing node. */
+  public relativePortRect: Rect;
 
   constructor(
-    public node: NodeDirective<OutputKey, InputKey>,
+    public node: NodeDirective,
     private elementRef: ElementRef,
-    private portRegistry: PortRegistryService<OutputKey, InputKey>,
-    private draggedConnections: DraggedConnectionsService<OutputKey, InputKey>
+    private portRegistry: PortRegistryService<PortKey>,
+    private draggedConnections: DraggedConnectionsService<PortKey>
   ) { }
 
   ngAfterViewInit(): void {
@@ -191,24 +191,12 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
       throw new Error('A node port cannot be an input and output at the same time. Use either [dnOutput] or [dnInput], not both.');
     }
 
-    {
-      const { x: nx, y: ny } = this.node.clientPos;
-      const { left: px, left: py, width, height } = (this.elementRef.nativeElement as HTMLElement).getBoundingClientRect();
-      this.portOffset = { x: px - nx, y: py - ny };
-      this.portSize = { width, height };
-      console.log(`Calculated position relative to node `)
-    }
+    // Recalculate position and size when the parent node changed
+    this.node.$viewInvalidated.pipe(takeUntil(this.unsubscribe)).subscribe(() => this.invalidateView());
+    this.invalidateView();
 
     // Register this port with its key at the portRegistry for fast lookup
-    if (this.isOutput) {
-      this.portRegistry.registerOutput(this.outputKey as OutputKey, this);
-    } else if (this.isInput) {
-      this.portRegistry.registerInput(this.inputKey as InputKey, this);
-    }
-
-    this.node.$portPositionsInvalidated.pipe(
-      takeUntil(this.unsubscribe)
-    ).subscribe(() => this.invalidatePosition());
+    this.portRegistry.registerPort(this.portKey, this);
 
     this.interactable = interact(this.elementRef.nativeElement);
 
@@ -218,40 +206,35 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
       autoScroll: true,
       onstart: (event: InteractDragEvent) => {
         if (this.isInput) {
-          this.draggedConnections.startInputDrag(this.inputKey as InputKey, { ...event.client });
+          this.draggedConnections.startInputDrag(this.portKey, { ...event.client });
         } else {
-          this.draggedConnections.startOutputDrag(this.outputKey as OutputKey, { ...event.client });
+          this.draggedConnections.startOutputDrag(this.portKey, { ...event.client });
         }
       },
       onmove: (event: InteractDragEvent) => {
         if (this.isInput) {
-          this.draggedConnections.dragInput(this.inputKey as InputKey, { ...event.client });
+          this.draggedConnections.dragInput(this.portKey, { ...event.client });
         } else {
-          this.draggedConnections.dragOutput(this.outputKey as OutputKey, { ...event.client });
+          this.draggedConnections.dragOutput(this.portKey, { ...event.client });
         }
       },
-      onend: (event: InteractDragEndEvent<OutputKey, InputKey>) => {
+      onend: (event: InteractDragEndEvent<PortKey>) => {
         if (this.isInput) {
-          this.draggedConnections.endInputDrag(this.inputKey as InputKey);
-          event[inputSymbol] = this.inputKey as InputKey;
+          this.draggedConnections.endInputDrag(this.portKey);
+          event[inputSymbol] = this.portKey;
         } else {
-          this.draggedConnections.endOutputDrag(this.outputKey as OutputKey);
-          event[outputSymbol] = this.outputKey as OutputKey;
+          this.draggedConnections.endOutputDrag(this.portKey);
+          event[outputSymbol] = this.portKey;
         }
       }
     });
 
     this.interactable.on('move', (event: InteractMoveEvent) => {
       if (event.interaction.pointerIsDown && !event.interaction.interacting()) {
-        const portKey = this.isInput ? { input: this.inputKey as InputKey } : { output: this.outputKey as OutputKey };
+        const portKey = this.isInput ? { input: this.portKey } : { output: this.portKey };
         const dragOrigin = this.getDragOriginPort(portKey);
         if (dragOrigin !== false) {
-          let startPort: NodePortDirective<OutputKey, InputKey>;
-          if ('input' in dragOrigin) {
-            startPort = this.portRegistry.getInput(dragOrigin.input);
-          } else {
-            startPort = this.portRegistry.getOutput(dragOrigin.output);
-          }
+          const startPort = this.portRegistry.getPort('input' in dragOrigin ? dragOrigin.input : dragOrigin.output);
           startPort.startDrag(event.interaction);
         }
       }
@@ -259,14 +242,14 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
 
     // Allow dropping stuff on this port
     this.interactable.dropzone({
-      ondrop: ({ dragEvent }: { dragEvent: InteractDragEndEvent<OutputKey, InputKey> }) => {
+      ondrop: ({ dragEvent }: { dragEvent: InteractDragEndEvent<PortKey> }) => {
         if (inputSymbol in dragEvent && this.isOutput) {
-          if (this.canConnect(this.outputKey as OutputKey, dragEvent[inputSymbol])) {
-            this.connect.next({ output: this.outputKey as OutputKey, input: dragEvent[inputSymbol] });
+          if (this.canConnect(this.portKey, dragEvent[inputSymbol])) {
+            this.connect.next({ output: this.portKey, input: dragEvent[inputSymbol] });
           }
         } else if (outputSymbol in dragEvent && this.isInput) {
-          if (this.canConnect(dragEvent[outputSymbol], this.inputKey as InputKey)) {
-            this.connect.next({ output: dragEvent[outputSymbol], input: this.inputKey as InputKey });
+          if (this.canConnect(dragEvent[outputSymbol], this.portKey)) {
+            this.connect.next({ output: dragEvent[outputSymbol], input: this.portKey });
           }
         }
       }
@@ -274,31 +257,25 @@ export class NodePortDirective<OutputKey, InputKey> implements AfterViewInit, On
   }
 
   ngOnDestroy(): void {
-    if (this.isOutput) {
-      this.portRegistry.unregisterOutput(this.outputKey as OutputKey);
-    } else {
-      this.portRegistry.unregisterInput(this.inputKey as InputKey);
-    }
+    this.portRegistry.unregisterPort(this.portKey);
 
     this.unsubscribe.next();
     this.unsubscribe.complete();
   }
 
+  /** Starts a drag event. */
   private startDrag(interaction: Interact.Interaction) {
     interaction.start({ name: 'drag' }, this.interactable, this.elementRef.nativeElement);
     this.dragStarted.emit();
   }
 
-  movePortRect(dx: number, dy: number) {
-    const { top, right, bottom, left, width, height } = this.htmlRect;
-    this.htmlRectCache = {
-      right: right + dx, left: left + dx,
-      top: top + dy, bottom: bottom + dy,
+  /** Recalculates the relative position of the port within its containing node. */
+  private invalidateView() {
+    const { x: nx, y: ny } = this.node.clientPos;
+    const { left, top, width, height } = (this.elementRef.nativeElement as HTMLElement).getBoundingClientRect();
+    this.relativePortRect = {
+      x: left - nx, y: top - ny,
       width, height
     };
-  }
-
-  invalidatePosition() {
-    this.htmlRectCache = null;
   }
 }

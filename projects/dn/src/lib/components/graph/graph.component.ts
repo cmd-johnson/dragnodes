@@ -1,35 +1,9 @@
-import {
-  Component, AfterViewInit, OnDestroy,
-  Input, Output,
-  ViewChild, ContentChildren,
-  TemplateRef, QueryList,
-  EventEmitter,
-  ChangeDetectorRef,
-  ElementRef
-} from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, Input, ViewChild, TemplateRef, ElementRef } from '@angular/core';
+import { Subject } from 'rxjs';
+
+import { Pos } from '../../data/pos';
 import { PortRegistryService } from '../../services/port-registry/port-registry.service';
 import { DraggedConnectionsService } from '../../services/dragged-connections/dragged-connections.service';
-import { NodeDirective } from '../../directives/node/node.directive';
-import { NodePortDirective } from '../../directives/node-port/node-port.directive';
-import { Subject, bindCallback } from 'rxjs';
-import { takeUntil, throttleTime, share } from 'rxjs/operators';
-
-interface Pos {
-  x: number;
-  y: number;
-}
-
-interface DraggedConnection {
-  from: Pos;
-  to: Pos;
-}
-
-function getCenter(rect: { top: number, left: number, width: number, height: number }): Pos {
-  return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2
-  };
-}
 
 @Component({
   selector: 'dn-graph',
@@ -40,60 +14,44 @@ function getCenter(rect: { top: number, left: number, width: number, height: num
     DraggedConnectionsService
   ]
 })
-export class GraphComponent<OutputKey, InputKey> implements AfterViewInit, OnDestroy {
+export class GraphComponent<PortKey> implements AfterViewInit, OnDestroy {
   /** Emits when all subscriptions should be dropped at the end of the component's lifecycle. */
   private unsubscribe = new Subject();
 
+  /** Reference to the default SVG template used to render (dragged) connections. */
   @ViewChild('defaultConnectionSvg')
   private defaultConnectionSvg: TemplateRef<SVGElement>;
 
-  @ContentChildren(NodePortDirective, { descendants: true })
-  private childPorts: QueryList<NodeDirective<OutputKey, InputKey>>;
-
+  /**
+   * The SVG template used to render (dragged) connections.
+   *
+   * Per default, this template also be used by dn-connection-components to render their connections.
+   */
   @Input()
   connectionSvg: TemplateRef<SVGElement>;
 
-  @Output()
-  connectionAdded = new EventEmitter<{ from: any, to: any }>();
-
-  get draggedConnections(): DraggedConnection[] {
+  /** Returns a list of all start and end points of dragged connections. */
+  get draggedConnections(): { from: Pos, to: Pos }[] {
+    const { left: dx, top: dy } = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
     return [
       ...this.draggedConnectionsService.draggedOutputs.map(({ output, cursor }) => ({
-        from: getCenter(this.portRegistry.getOutputRect(output)),
-        to: { x: cursor.x + this.portRegistry.graphOffset.dx, y: cursor.y + this.portRegistry.graphOffset.dy }
+        from: this.getCenter(this.portRegistry.getPortRect(output)),
+        to: { x: cursor.x - dx, y: cursor.y - dy }
       })),
       ...this.draggedConnectionsService.draggedInputs.map(({ input, cursor }) => ({
-        from: { x: cursor.x + this.portRegistry.graphOffset.dx, y: cursor.y + this.portRegistry.graphOffset.dy },
-        to: getCenter(this.portRegistry.getInputRect(input))
+        from: { x: cursor.x - dx, y: cursor.y - dy },
+        to: this.getCenter(this.portRegistry.getPortRect(input))
       }))
     ];
   }
 
-  public get graphOffset(): { dx: number, dy: number } {
-    const { top, left } = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || 0;
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-    const offset = { dx: -left + scrollLeft, dy: -top + scrollTop };
-    return offset;
-  }
-
   constructor(
-    private portRegistry: PortRegistryService<OutputKey, InputKey>,
-    private draggedConnectionsService: DraggedConnectionsService<OutputKey, InputKey>,
-    private element: ElementRef,
-    private changeDetector: ChangeDetectorRef
-  ) {
-    requestAnimationFrame(() => {
-      console.log('requestAnimationFrame: element is', !!this.element ? this.element.nativeElement : 'undef');
-      if (!!this.element) {
-        console.log('requestAnimationFrame:', (this.element.nativeElement as HTMLElement).getBoundingClientRect());
-      }
-    });
-  }
+    private portRegistry: PortRegistryService<PortKey>,
+    private draggedConnectionsService: DraggedConnectionsService<PortKey>,
+    private element: ElementRef
+  ) { }
 
   ngAfterViewInit(): void {
-    console.log('ngAfterViewInit:', (this.element.nativeElement as HTMLElement).getBoundingClientRect());
-
     if (!this.connectionSvg) {
       /*
        * Wait until the next change detection cycle to update the value to prevent
@@ -101,27 +59,12 @@ export class GraphComponent<OutputKey, InputKey> implements AfterViewInit, OnDes
        */
       setTimeout(() => this.connectionSvg = this.defaultConnectionSvg);
     }
-
-    // Manually trigger change detection to fix port connections not updating immediately when dynamically adding or removing ports
-    this.childPorts.changes.pipe(
-      takeUntil(this.unsubscribe)
-    ).subscribe(() => setTimeout(() => this.changeDetector.detectChanges()));
-
-    // const ownRect = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
-    // this.portRegistry.graphOffset = { dx: -ownRect.left, dy: -ownRect.top };
-
-    /*const resizeTest = () => {
-      requestAnimationFrame(() => {
-        const el = this.element.nativeElement as HTMLElement;
-        console.log('animation frame', (this.element.nativeElement));
-        resizeTest();
-      });
-    };
-    resizeTest();*/
   }
 
   /**
    * Builds a bezier curve with a handle right of the output and one left of the input.
+   *
+   * Used by the default connection SVG template to render the connection.
    */
   defaultConnectionPath(from: Pos, to: Pos): string {
     const dx = to.x - from.x;
@@ -133,5 +76,13 @@ export class GraphComponent<OutputKey, InputKey> implements AfterViewInit, OnDes
   ngOnDestroy(): void {
     this.unsubscribe.next();
     this.unsubscribe.complete();
+  }
+
+  /** Calculates the center of the given rectangle. */
+  private getCenter(rect: { x: number, y: number, width: number, height: number }): Pos {
+    return {
+      x: rect.x + rect.width / 2,
+      y: rect.y + rect.height / 2
+    };
   }
 }

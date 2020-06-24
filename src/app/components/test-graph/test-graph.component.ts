@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { NodeDirective } from 'projects/dn/src/lib/directives/node/node.directive';
 
 interface Input {
   name: string;
@@ -62,10 +63,6 @@ export class TestGraphComponent {
     }
   }
 
-  onConnected({ from, to }: { from: string, to: string }) {
-    this.connections.push({ from, to, data: 0.5 });
-  }
-
   connectionPath({ x: fx, y: fy }: Pos, { x: tx, y: ty }: Pos): string {
     const dx = tx - fx;
     const dy = ty - fy;
@@ -92,10 +89,6 @@ export class TestGraphComponent {
     return port.name;
   }
 
-  debugLog(...args) {
-    console.log(...args);
-  }
-
   getDragOriginPort = (port: { output: string } | { input: string }) => {
     if ('output' in port) {
       const existingConnection = this.connections.find(c => c.from === port.output);
@@ -116,12 +109,10 @@ export class TestGraphComponent {
   }
 
   connect({ output, input }: { output: string, input: string }) {
-    console.log('connecting', output, 'to', input);
     this.connections.push({ from: output, to: input, data: 0.5 });
   }
 
   disconnectOutput(output: string) {
-    console.log('disc o', output);
     const index = this.connections.findIndex(c => c.from === output);
     if (index >= 0) {
       this.connections.splice(index, 1);
@@ -129,14 +120,13 @@ export class TestGraphComponent {
   }
 
   disconnectInput(input: string) {
-    console.log('disc i', input);
     const index = this.connections.findIndex(c => c.to === input);
     if (index >= 0) {
       this.connections.splice(index, 1);
     }
   }
 
-  addInput({ inputs }: Node) {
+  addInput({ inputs }: Node, directive: NodeDirective) {
     if (inputs.length === 0) {
       inputs.push({ name: 'Input 1' });
     } else {
@@ -145,9 +135,10 @@ export class TestGraphComponent {
       const num = parseInt(x[x.length - 1], 10);
       inputs.push({ name: `Input ${num + 1}`});
     }
+    directive.invalidateView();
   }
 
-  addOutput({ outputs }: Node) {
+  addOutput({ outputs }: Node, directive: NodeDirective) {
     if (outputs.length === 0) {
       outputs.push({ name: 'Output 1' });
     } else {
@@ -156,16 +147,19 @@ export class TestGraphComponent {
       const num = parseInt(x[x.length - 1], 10);
       outputs.push({ name: `Output ${num + 1}` });
     }
+    directive.invalidateView();
   }
 
-  removeInput(node: Node, input: Input) {
+  removeInput(node: Node, input: Input, directive: NodeDirective) {
     node.inputs.splice(node.inputs.indexOf(input), 1);
     this.disconnectInput(this.portKey(node, input));
+    directive.invalidateView();
   }
 
-  removeOutput(node: Node, output: Output) {
+  removeOutput(node: Node, output: Output, directive: NodeDirective) {
     node.outputs.splice(node.outputs.indexOf(output), 1);
     this.disconnectOutput(this.portKey(node, output));
+    directive.invalidateView();
   }
 
 }

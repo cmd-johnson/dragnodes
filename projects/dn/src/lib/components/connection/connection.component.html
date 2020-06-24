@@ -1,3 +1,8 @@
 <svg>
   <ng-container *ngTemplateOutlet="actualConnectionSvg; context: svgContext"></ng-container>
 </svg>
+<div class="infoContainer" [ngStyle]="infoContainerStyle">
+  <div class="infoOffset">
+    <ng-content></ng-content>
+  </div>
+</div>

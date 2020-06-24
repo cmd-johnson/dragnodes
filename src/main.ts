@@ -14,7 +14,9 @@ platformBrowserDynamic().bootstrapModule(AppModule)
     if (!environment.production) {
       const applicationRef = moduleRef.injector.get(ApplicationRef);
       const componentRef = applicationRef.components[0];
+
       // allows to run `ng.profiler.timeChangeDetection();`
+      // (see https://angular.io/api/platform-browser/enableDebugTools)
       enableDebugTools(componentRef);
     }
   })

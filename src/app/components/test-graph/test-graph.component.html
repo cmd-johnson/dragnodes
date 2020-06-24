@@ -6,31 +6,31 @@
   </svg:g>
 </ng-template>
 
-<dn-graph (connectionAdded)="onConnected($event)">
+<dn-graph>
   <dn-connection *ngFor="let c of connections" [from]="c.from" [to]="c.to">
     <!-- displayed at the center of the connection -->
-    <span>{{c.data | percent}}</span>
+    <span class="connection-data">{{c.data | percent}}</span>
   </dn-connection>
-  <div *ngFor="let n of nodes; trackBy: trackNode" class="node" dnNode [(nodePos)]="n.position">
+  <div *ngFor="let n of nodes; trackBy: trackNode" class="node" dnNode [(nodePos)]="n.position" #nodeDirective=nodeDirective>
     <div class="header">{{n.name}}</div>
     <div class="ports">
       <div class="inputs">
         <div class="input">
-          <a style="pointer-events: all; cursor: pointer;" (click)="addInput(n)">Add Input</a>
+          <a style="pointer-events: all; cursor: pointer;" (click)="addInput(n, nodeDirective)">Add Input</a>
         </div>
         <div class="input" *ngFor="let i of n.inputs; trackBy: trackPortId">
           <div class="port" [dnInput]="portKey(n, i)" [getDragOriginPort]="getDragOriginPort" (dragStarted)="disconnectInput(portKey(n, i))" [canConnect]="$any(canConnect)" (connect)="connect($event)"></div>
           {{i.name}}
-          <a style="pointer-events: all; cursor: pointer;" (click)="removeInput(n, i)">&nbsp;&#x2715;</a>
+          <a style="pointer-events: all; cursor: pointer;" (click)="removeInput(n, i, nodeDirective)">&nbsp;&#x2715;</a>
         </div>
       </div>
       <div class="divider"></div>
       <div class="outputs">
         <div class="output">
-          <a style="pointer-events: all; cursor: pointer;" (click)="addOutput(n)">Add Output</a>
+          <a style="pointer-events: all; cursor: pointer;" (click)="addOutput(n, nodeDirective)">Add Output</a>
         </div>
         <div class="output" *ngFor="let o of n.outputs; trackBy: trackPortId">
-          <a style="pointer-events: all; cursor: pointer;" (click)="removeOutput(n, o)">&#x2715;&nbsp;</a>
+          <a style="pointer-events: all; cursor: pointer;" (click)="removeOutput(n, o, nodeDirective)">&#x2715;&nbsp;</a>
           {{o.name}}
           <div class="port" [dnOutput]="portKey(n, o)" [getDragOriginPort]="getDragOriginPort" (dragStarted)="disconnectOutput(portKey(n, o))" [canConnect]="$any(canConnect)" (connect)="connect($event)"></div>
         </div>
