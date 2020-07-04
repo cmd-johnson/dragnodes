@@ -89,17 +89,11 @@ export class TestGraphComponent {
     return port.name;
   }
 
-  getDragOriginPort = (port: { output: string } | { input: string }) => {
-    if ('output' in port) {
-      const existingConnection = this.connections.find(c => c.from === port.output);
-      if (existingConnection) {
-        return { input: existingConnection.to };
-      }
-    } else {
-      const existingConnection = this.connections.find(c => c.to === port.input);
-      if (existingConnection) {
-        return { output: existingConnection.from };
-      }
+  getDragOriginPort = (port: string) => {
+    const existingConnection = this.connections.find(c => c.from === port || c.to === port);
+    if (existingConnection) {
+      const { from, to } = existingConnection;
+      return from === port ? to : from;
     }
     return port;
   }

@@ -127,7 +127,7 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
    * ```
    */
   @Input()
-  getDragOriginPort: (port: OutputOrInput<PortKey>) => OutputOrInput<PortKey> | false = (() => false as false);
+  getDragOriginPort: (port: PortKey) => PortKey | false = (() => false as false);
 
   /**
    * Triggers when a drag was started from this port.
@@ -193,7 +193,7 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
 
     // Recalculate position and size when the parent node changed
     this.node.$viewInvalidated.pipe(takeUntil(this.unsubscribe)).subscribe(() => this.invalidateView());
-    this.invalidateView();
+    setTimeout(() => this.invalidateView());
 
     // Register this port with its key at the portRegistry for fast lookup
     this.portRegistry.registerPort(this.portKey, this);
@@ -231,10 +231,9 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
 
     this.interactable.on('move', (event: InteractMoveEvent) => {
       if (event.interaction.pointerIsDown && !event.interaction.interacting()) {
-        const portKey = this.isInput ? { input: this.portKey } : { output: this.portKey };
-        const dragOrigin = this.getDragOriginPort(portKey);
+        const dragOrigin = this.getDragOriginPort(this.portKey);
         if (dragOrigin !== false) {
-          const startPort = this.portRegistry.getPort('input' in dragOrigin ? dragOrigin.input : dragOrigin.output);
+          const startPort = this.portRegistry.getPort(dragOrigin);
           startPort.startDrag(event.interaction);
         }
       }

@@ -1,0 +1,44 @@
+<div class="toolbar">
+  <button (click)="addNumber()">Number</button>
+  <button (click)="addSumExpression()">Add</button>
+  <button (click)="addSubtractExpression()">Subtract</button>
+  <button (click)="addResult()">Result</button>
+</div>
+<dn-graph>
+  <div *ngFor="let n of nodeList; trackBy: trackNode" class="node" dnNode [(nodePos)]="n.position">
+    <div class="header">
+      <a (click)="removeNode(n)">&#x2715;&nbsp;</a>
+      {{n.node.type}}
+    </div>
+    <div class="ports">
+      <div class="inputs" *ngIf="n.inputs.length > 0">
+        <div class="input" *ngFor="let i of n.inputs">
+          <div class="port" [dnInput]="i"
+              [getDragOriginPort]="getInputDragOriginPort()"
+              [canConnect]="canConnect"
+              (dragStarted)="disconnectInput(n, i)"
+              (connect)="connect($event)">
+          </div>
+        </div>
+      </div>
+      <div class="divider" *ngIf="n.inputs.length > 0 && n.outputs.length > 0"></div>
+      <div class="outputs" *ngIf="n.outputs.length > 0">
+        <div class="output" *ngFor="let o of n.outputs">
+          <div class="port" [dnOutput]="o"
+              [getDragOriginPort]="getOutputDragOriginPort()"
+              [canConnect]="canConnect"
+              (dragStarted)="disconnectOutput(n, o)"
+              (connect)="connect($event)">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!--<ng-container *ngFor="let n of nodeList; trackBy: trackNode">
+    <app-variable-node *ngIf="n.content.type === 'variable' else expression" [variable]="n.content" dnNode [(nodePos)]="n.position"></app-variable-node>
+    <ng-template #expression>
+      <!-- Since this is only rendered when n.content.type is 'expression, n.content will always be an Expression and it's safe to use $any here --\>
+      <app-expression-node [(nodePos)]="n.position" [expression]="$any(n.content)"></app-expression-node>
+    </ng-template>
+  </ng-container>-->
+</dn-graph>

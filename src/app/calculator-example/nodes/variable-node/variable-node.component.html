@@ -1,0 +1,22 @@
+<div class="header">
+  <a>&#x2715;&nbsp;</a>
+  Variable
+</div>
+<div class="ports">
+  <div class="inputs">
+    <div class="input">
+      <div class="port" [dnInput]="inputPortKey"></div>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div>
+    <input type="number" *ngIf="variable.subtype === 'number'">
+    <input type="checkbox" *ngIf="variable.subtype === 'boolean'">
+  </div>
+  <div class="divider"></div>
+  <div class="outputs">
+    <div class="output">
+      <div class="port" [dnOutput]="outputPortKey"></div>
+    </div>
+  </div>
+</div>

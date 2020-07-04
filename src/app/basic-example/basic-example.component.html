@@ -1,0 +1,31 @@
+<dn-graph>
+  <dn-connection *ngFor="let c of connections" [from]="c.from" [to]="c.to"></dn-connection>
+  <div *ngFor="let n of nodes.values(); trackBy: trackNode" class="node" dnNode [(nodePos)]="n.position">
+    <div class="header">{{n.name}}</div>
+    <div class="ports">
+      <div class="inputs">
+        <div class="input" *ngFor="let i of n.inputs">
+          <div class="port" [dnInput]="portKey(n, i)"
+              [getDragOriginPort]="getDragOriginPort"
+              [canConnect]="canConnect"
+              (dragStarted)="disconnectPort(portKey(n, i))"
+              (connect)="connect($event)">
+          </div>
+          {{i}}
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="outputs">
+        <div class="output" *ngFor="let o of n.outputs">
+          {{o}}
+          <div class="port" [dnOutput]="portKey(n, o)"
+              [getDragOriginPort]="getDragOriginPort"
+              [canConnect]="$any(canConnect)"
+              (dragStarted)="disconnectPort(portKey(n, o))"
+              (connect)="connect($event)">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</dn-graph>
