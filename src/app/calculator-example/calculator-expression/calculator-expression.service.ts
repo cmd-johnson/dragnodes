@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, combineLatest, OperatorFunction } from 'rxjs';
-import { switchMap, map, shareReplay, distinctUntilChanged } from 'rxjs/operators';
+import { BehaviorSubject, Observable, combineLatest, OperatorFunction, of } from 'rxjs';
+import { switchMap, map, shareReplay } from 'rxjs/operators';
 
-class Expr<I, O> {
+export class Expr<I = any, O = any> {
   private static nextId = 0;
   public readonly id: number;
 
@@ -17,15 +17,13 @@ class Expr<I, O> {
 
   constructor(
     public readonly inputCount: number,
-    calculateOutput: (inputs: I[]) => O,
-    op: OperatorFunction<O, O> = o => o
+    op: OperatorFunction<I[], O>
   ) {
     this.id = Expr.nextId++;
 
     this.inputs = new BehaviorSubject([...Array(inputCount)].map(() => null));
     this.output = this.inputs.pipe(
-      switchMap(i => combineLatest(i.map(e => e.output))),
-      map(i => calculateOutput(i)),
+      switchMap(i => combineLatest(i.map(e => e && e.output || of(null)))),
       op,
       shareReplay(1)
     );
@@ -60,7 +58,7 @@ class Expr<I, O> {
   }
 }
 
-class Var<V> extends Expr<V, V> {
+export class Var<V> extends Expr<V, V> {
   private val: BehaviorSubject<V>;
 
   get value(): V {
@@ -68,15 +66,19 @@ class Var<V> extends Expr<V, V> {
   }
 
   set value(value: V) {
-    this.val.next(value);
+    // Diretly setting values only works when the variable has no input, because
+    // the value would be overwritten by the input
+    if (this.inputNodes.every(i => i === null)) {
+      this.val.next(value);
+    }
   }
 
   constructor(initial: V) {
     const value = new BehaviorSubject<V>(initial);
-    super(1, ([v]) => v, (input: Observable<V>) => combineLatest([input, value]).pipe(
-      distinctUntilChanged(([v1, i1], [v2, i2]) => v1 !== v2 || i1 !== i2),
+    super(1, input => combineLatest([input.pipe(map(([v]) => v)), value]).pipe(
       map(([i, v]) => {
-        if (i !== null) {
+        console.log('mapping', i, v);
+        if (i !== null && i !== v) {
           value.next(i);
           return i;
         }
@@ -84,13 +86,14 @@ class Var<V> extends Expr<V, V> {
       })
     ));
     this.val = value;
+    this.output.subscribe();
   }
 }
 
 @Injectable({
   providedIn: 'root'
 })
-export class CalculatorExpressionServiceService {
+export class CalculatorExpressionService {
 
   private expressionNodes: Expr<any, any>[] = [];
   private variables = new Map<number, Var<any>>();
@@ -107,14 +110,17 @@ export class CalculatorExpressionServiceService {
     }
   }
 
-  addExpression<I, O>(inputCount: number, calculateValue: (inputs: I[]) => O): void {
-    this.addNode(new Expr<I, O>(inputCount, calculateValue));
+  addExpression<I, O>(inputCount: number, calculateValue: (inputs: I[]) => O): Expr<I, O> {
+    const expr = new Expr<I, O>(inputCount, map(calculateValue));
+    this.addNode(expr);
+    return expr;
   }
 
-  addVariable<T>(initial: T): void {
+  addVariable<T>(initial: T): Var<T> {
     const node = new Var<T>(initial);
     this.addNode(node);
     this.variables.set(node.id, node);
+    return node;
   }
 
   removeNode(node: Expr<any, any>): void {
