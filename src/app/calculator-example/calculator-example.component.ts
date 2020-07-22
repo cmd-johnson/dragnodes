@@ -1,6 +1,6 @@
 import { Component, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
-import { CalculatorService, CalculatorNode } from './calculator-service/calculator.service';
+import { CalculatorExpressionService, Expr, Var } from './calculator-expression/calculator-expression.service';
 
 interface InputPort {
   id: number;
@@ -15,7 +15,7 @@ interface OutputPort {
 interface Node {
   key: number;
   position: { x: number, y: number };
-  node: CalculatorNode;
+  node: Expr;
   inputs: InputPort[];
   outputs: OutputPort[];
 }
@@ -28,25 +28,25 @@ interface Node {
 export class CalculatorExampleComponent implements OnDestroy {
   private unsubscribe = new Subject();
 
-  private nodeMetadata = new Map<CalculatorNode, Node>();
+  private nodeMetadata = new Map<Expr, Node>();
   private nodeKeyMap = new Map<number, Node>();
   private nextNodeKey = 0;
 
   get nodeList(): readonly Node[] {
-    return this.calculator.nodeList.map(n => this.getNodeMetadata(n));
+    return this.calculator.nodes.map(n => this.getNodeMetadata(n));
   }
 
   constructor(
-    private readonly calculator: CalculatorService
+    private readonly calculator: CalculatorExpressionService
   ) { }
 
-  private getNodeMetadata(node: CalculatorNode): Node {
+  private getNodeMetadata(node: Expr): Node {
     if (!this.nodeMetadata.has(node)) {
       const nextKey = this.nextNodeKey++;
       const metadata = {
         key: nextKey,
         position: { x: 0, y: 0 },
-        outputs: node.type !== 'result' ? [{ id: 0 }] : [],
+        outputs: node.output,
         inputs: node.type === 'value' ? [] : node.type === 'result' ? [{ id: 0 }] : [{ id: 0 }, { id: 1 }],
         node
       };
@@ -66,23 +66,19 @@ export class CalculatorExampleComponent implements OnDestroy {
     return node.key;
   }
 
-  addNumber() {
-    this.calculator.addNumberValue();
+  addVariable() {
+    this.calculator.addVariable(0);
   }
 
   addBoolean() {
   }
 
   addSumExpression() {
-    this.calculator.addSum();
+    this.calculator.addExpression<number, number>(2, i => i.filter(x => x !== null && typeof(x) === 'number').reduce((a, b) => a + b, 0));
   }
 
   addSubtractExpression() {
-    this.calculator.addSubtraction();
-  }
-
-  addResult() {
-    this.calculator.addResult();
+    this.calculator.addExpression<number, number>(2, ([a, b]) => typeof(a) === 'number' && typeof(b) === 'number' ? a - b : NaN);
   }
 
   removeNode(node: Node) {

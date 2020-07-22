@@ -1,8 +1,7 @@
 <div class="toolbar">
-  <button (click)="addNumber()">Number</button>
+  <button (click)="addVariable()">Variable</button>
   <button (click)="addSumExpression()">Add</button>
   <button (click)="addSubtractExpression()">Subtract</button>
-  <button (click)="addResult()">Result</button>
 </div>
 <dn-graph>
   <div *ngFor="let n of nodeList; trackBy: trackNode" class="node" dnNode [(nodePos)]="n.position">
