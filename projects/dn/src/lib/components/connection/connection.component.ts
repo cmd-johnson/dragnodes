@@ -1,4 +1,4 @@
-import { Component, Input, TemplateRef } from '@angular/core';
+import { Component, Input, TemplateRef, OnInit } from '@angular/core';
 
 import { GraphComponent } from '../graph/graph.component';
 import { PortRegistryService } from '../../services/port-registry/port-registry.service';
@@ -8,7 +8,7 @@ import { PortRegistryService } from '../../services/port-registry/port-registry.
   templateUrl: './connection.component.html',
   styleUrls: ['./connection.component.scss']
 })
-export class ConnectionComponent<PortKey> {
+export class ConnectionComponent<PortKey, Data = any> {
   /** The key of the port the connection originates from. */
   @Input()
   from: PortKey;
@@ -16,6 +16,10 @@ export class ConnectionComponent<PortKey> {
   /** The key of the port the connection ends at. */
   @Input()
   to: PortKey;
+
+  /** Additional data to pass to the connection template. */
+  @Input()
+  data: Data;
 
   /**
    * The SVG template to use to render the connection or 'default'.
@@ -37,12 +41,15 @@ export class ConnectionComponent<PortKey> {
     return {
       from: {
         x: output.x + output.width / 2,
-        y: output.y + output.height / 2
+        y: output.y + output.height / 2,
+        port: this.from
       },
       to: {
         x: input.x + input.width / 2,
-        y: input.y + input.height / 2
-      }
+        y: input.y + input.height / 2,
+        port: this.to
+      },
+      data: this.data
     };
   }
 

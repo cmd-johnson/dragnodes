@@ -3,13 +3,13 @@ import { map } from 'rxjs/operators';
 
 import { GraphNode, GraphNodeType, Pos, Input, Output } from '../graph-node';
 
-export class SumGraphNode extends GraphNode {
-  public readonly nodeType: GraphNodeType = 'sum';
-  public readonly title = 'A + B';
+export class EqGraphNode extends GraphNode {
+  public readonly nodeType: GraphNodeType = 'eq';
+  public readonly title = 'A = B';
 
   inputA: Input<number>;
   inputB: Input<number>;
-  output: Output<number>;
+  output: Output<boolean>;
 
   constructor(position?: Pos) {
     super(position);
@@ -21,11 +21,11 @@ export class SumGraphNode extends GraphNode {
     this.inputA = inA;
     this.inputB = inB;
 
-    const [out] = this.setOutputs({ type: 'num', title: 'Result' });
+    const [out] = this.setOutputs({ type: 'bool', title: 'Result' });
     this.output = out;
 
     combineLatest([inA.$value, inB.$value]).pipe(
-      map(([a, b]) => a !== null || b !== null ? (a || 0) + (b || 0) : null)
+      map(([a, b]) => a !== null || b !== null ? (a || 0) === (b || 0) : null)
     ).subscribe(out.$value);
   }
 }

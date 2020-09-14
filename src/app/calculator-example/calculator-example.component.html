@@ -1,43 +1,88 @@
-<div class="toolbar">
-  <button (click)="addVariable()">Variable</button>
-  <button (click)="addSumExpression()">Add</button>
-  <button (click)="addSubtractExpression()">Subtract</button>
+<ng-template #connection let-from="from" let-to="to" let-data="data">
+  <svg:g>
+    <path class="connection-hitbox" [attr.d]="connectionPath(from, to)"
+        appSelectable [allowMultiSelection]="true" [ignoreOutsideOf]="graphElement"
+        (selectedChange)="connectionSelectionChanged(from.port, to.port, $any($event))"
+        [selected]="isSelected(from.port, to.port)"
+        (contextmenu)="onConnectionContextMenu($event)"
+        #selectable="selectable" />
+
+    <path class="connection" [ngClass]="[data?.type, { selected: selectable.selectedChange | async }] | combineClasses" [attr.d]="connectionPath(from, to)" />
+    <path class="selection-highlight" [ngClass]="data?.type" [attr.d]="connectionPath(from, to)" />
+  </svg:g>
+</ng-template>
+
+<div class="connection-context-menu" [ngStyle]="{ visibility: showConnectionContextMenu ? 'visible' : 'hidden', 'top.px': connectionContextMenuPosition?.y + 1, 'left.px': connectionContextMenuPosition?.x + 1 }" #connectionContextMenu>
+  <button (click)="deleteSelectedConnections()">Delete</button>
+  <button (click)="selectAllConnections()">Select All</button>
 </div>
-<dn-graph>
-  <div *ngFor="let n of nodeList; trackBy: trackNode" class="node" dnNode [(nodePos)]="n.position">
+
+<div class="toolbar">
+  <button (click)="addNode('numvar')">Number</button>
+  <button (click)="addNode('boolvar')">Boolean</button>
+  <button (click)="addNode('sum')">+</button>
+  <button (click)="addNode('sub')">-</button>
+  <button (click)="addNode('mult')">*</button>
+  <button (click)="addNode('div')">/</button>
+  <button (click)="addNode('gt')">&gt;</button>
+  <button (click)="addNode('gte')">&ge;</button>
+  <button (click)="addNode('eq')">=</button>
+  <button (click)="addNode('lte')">&le;</button>
+  <button (click)="addNode('lt')">&lt;</button>
+  <button (click)="addNode('if')">If Then Else</button>
+</div>
+<!-- We're assigning a tabindex here in order to be able to capture keyboard events on the graph, which are used to delete connections by pressing the delete or backspace keys -->
+<dn-graph [connectionSvg]="connection" (keydown)="graphKeyDown($event)" tabindex="0" #graph>
+  <dn-connection *ngFor="let c of connections" [from]="c.output" [to]="c.input" [data]="{ type: c.type }"></dn-connection>
+  <div *ngFor="let node of nodes" class="node" dnNode [(nodePos)]="node.position">
     <div class="header">
-      <a (click)="removeNode(n)">&#x2715;&nbsp;</a>
-      {{n.node.type}}
+      <a (click)="removeNode(node)">&#x2715;&nbsp;</a>
+      {{node.title}}
+      <ng-container *ngIf="node.nodeType === 'numvar'">
+        <input type="number" step="1" [(ngModel)]="$any(node).value" style="width: 40px">
+      </ng-container>
+      <ng-container *ngIf="node.nodeType === 'boolvar'">
+        <input type="checkbox" [(ngModel)]="$any(node).value">
+      </ng-container>
     </div>
     <div class="ports">
-      <div class="inputs" *ngIf="n.inputs.length > 0">
-        <div class="input" *ngFor="let i of n.inputs">
-          <div class="port" [dnInput]="i"
-              [getDragOriginPort]="getInputDragOriginPort()"
-              [canConnect]="canConnect"
-              (dragStarted)="disconnectInput(n, i)"
-              (connect)="connect($event)">
+      <div class="inputs" *ngIf="node.inputs.size > 0">
+        <div *ngFor="let item of node.inputs | keyvalue">
+          <span *ngIf="item.key !== ''">{{item.key}}</span>
+          <div class="input" *ngFor="let i of item.value">
+            <svg viewBox="0 0 16 16" width="16" height="16">
+              <path d="M1,2 L1,14 L10,14 L15,8 L10,2 L1,2 Z"
+                  class="port" [dnInput]="i" [ngClass]="portClass(i, input.isDragging | async)"
+                  [getDragOriginPort]="getInputDragOriginPort()"
+                  [canConnect]="canConnect"
+                  [dragData]="getDragData(i)"
+                  (dragStarted)="disconnectPort(i)"
+                  (connect)="connect($event)"
+                  #input="dnPort" />
+            </svg>
+            {{i.title}}
           </div>
         </div>
       </div>
-      <div class="divider" *ngIf="n.inputs.length > 0 && n.outputs.length > 0"></div>
-      <div class="outputs" *ngIf="n.outputs.length > 0">
-        <div class="output" *ngFor="let o of n.outputs">
-          <div class="port" [dnOutput]="o"
-              [getDragOriginPort]="getOutputDragOriginPort()"
-              [canConnect]="canConnect"
-              (dragStarted)="disconnectOutput(n, o)"
-              (connect)="connect($event)">
+      <div class="divider" *ngIf="node.inputs.size > 0 && node.outputs.size > 0"></div>
+      <div class="outputs" *ngIf="node.outputs.size > 0">
+        <div *ngFor="let item of node.outputs | keyvalue">
+          <span *ngIf="item.key !== ''">{{item.key}}</span>
+          <div class="output" *ngFor="let o of item.value">
+            {{o.title}}
+            <svg viewBox="0 0 16 16" width="16" height="16">
+              <path d="M1,2 L1,14 L10,14 L15,8 L10,2 L1,2 Z"
+                  class="port" [dnOutput]="o" [ngClass]="portClass(o, output.isDragging | async)"
+                  [getDragOriginPort]="getOutputDragOriginPort()"
+                  [canConnect]="canConnect"
+                  [dragData]="getDragData(o)"
+                  (dragStarted)="disconnectPort(o)"
+                  (connect)="connect($event)"
+                  #output="dnPort" />
+            </svg>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <!--<ng-container *ngFor="let n of nodeList; trackBy: trackNode">
-    <app-variable-node *ngIf="n.content.type === 'variable' else expression" [variable]="n.content" dnNode [(nodePos)]="n.position"></app-variable-node>
-    <ng-template #expression>
-      <!-- Since this is only rendered when n.content.type is 'expression, n.content will always be an Expression and it's safe to use $any here --\>
-      <app-expression-node [(nodePos)]="n.position" [expression]="$any(n.content)"></app-expression-node>
-    </ng-template>
-  </ng-container>-->
 </dn-graph>

@@ -1,60 +1,55 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit, HostListener, HostBinding, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { Subject } from 'rxjs';
-import { CalculatorExpressionService, Expr, Var } from './calculator-expression/calculator-expression.service';
 
-interface InputPort {
-  id: number;
-  connectedToNode?: number;
-}
-
-interface OutputPort {
-  id: number;
-  connectedTo?: { node: number, port: number };
-}
-
-interface Node {
-  key: number;
-  position: { x: number, y: number };
-  node: Expr;
-  inputs: InputPort[];
-  outputs: OutputPort[];
-}
+import { GraphNode, Output, Input, Port, Pos, GraphValueType, GraphNodeType } from './graph-test/graph-node';
+import { createNew, deserialize, serialize } from './graph-test/graph-serialization';
 
 @Component({
   selector: 'app-calculator-example',
   templateUrl: './calculator-example.component.html',
   styleUrls: ['./calculator-example.component.scss']
 })
-export class CalculatorExampleComponent implements OnDestroy {
+export class CalculatorExampleComponent implements OnInit, OnDestroy, AfterViewInit {
   private unsubscribe = new Subject();
 
-  private nodeMetadata = new Map<Expr, Node>();
-  private nodeKeyMap = new Map<number, Node>();
-  private nextNodeKey = 0;
+  showConnectionContextMenu = false;
+  connectionContextMenuPosition: Pos = { x: 0, y: 0 };
 
-  get nodeList(): readonly Node[] {
-    return this.calculator.nodes.map(n => this.getNodeMetadata(n));
+  public nodes: GraphNode[] = [];
+
+  // TODO: cache these. clear the cache only when connections are added/deleted.
+  private connectionCache: { input: Port<any, any>, output: Port<any, any>, type: GraphValueType }[] = null;
+  public get connections(): { input: Port<any, any>, output: Port<any, any>, type: GraphValueType }[] {
+    if (this.connectionCache !== null) {
+      return this.connectionCache;
+    }
+    this.connectionCache = this.nodes
+      .reduce<Output[]>((outputs: Output[], node: GraphNode) => [
+        ...outputs,
+        ...[...node.outputs.values()].reduce<Output[]>((a, b) => [...a, ...b], [])
+      ], [])
+      .filter((o: Output) => o.connectedTo !== null)
+      .map(o => ({
+        output: o,
+        input: o.connectedTo,
+        type: o.type
+      }));
+    return this.connectionCache;
   }
 
-  constructor(
-    private readonly calculator: CalculatorExpressionService
-  ) { }
+  @ViewChild('graph', { read: ElementRef })
+  private graph: ElementRef;
+  public graphElement: HTMLElement;
 
-  private getNodeMetadata(node: Expr): Node {
-    if (!this.nodeMetadata.has(node)) {
-      const nextKey = this.nextNodeKey++;
-      const metadata = {
-        key: nextKey,
-        position: { x: 0, y: 0 },
-        outputs: node.output,
-        inputs: node.type === 'value' ? [] : node.type === 'result' ? [{ id: 0 }] : [{ id: 0 }, { id: 1 }],
-        node
-      };
-      this.nodeMetadata.set(node, metadata);
-      this.nodeKeyMap.set(nextKey, metadata);
-      return metadata;
-    }
-    return this.nodeMetadata.get(node);
+  @ViewChild('connectionContextMenu', { read: ElementRef })
+  private connectionContextMenuElement: ElementRef;
+
+  private selectedConnections = new Map<Port<any, any>, Port<any, any>>();
+
+  constructor() { }
+
+  ngOnInit(): void {
+    this.deserialize();
   }
 
   ngOnDestroy(): void {
@@ -62,72 +57,156 @@ export class CalculatorExampleComponent implements OnDestroy {
     this.unsubscribe.complete();
   }
 
-  trackNode(_, node: Node) {
-    return node.key;
+  ngAfterViewInit(): void {
+    setTimeout(() => this.graphElement = this.graph.nativeElement);
   }
 
-  addVariable() {
-    this.calculator.addVariable(0);
+  deserialize() {
+    const rawSerialized = window.localStorage.getItem('calculator-graph');
+    try {
+      const serialized = JSON.parse(rawSerialized);
+      const deserialized = deserialize(serialized);
+      this.nodes = deserialized;
+    } catch (e) {
+      console.warn('failed to deserialize calculator graph', e);
+    }
   }
 
-  addBoolean() {
+  serialize() {
+    const serialized = serialize(this.nodes);
+    window.localStorage.setItem('calculator-graph', JSON.stringify(serialized));
   }
 
-  addSumExpression() {
-    this.calculator.addExpression<number, number>(2, i => i.filter(x => x !== null && typeof(x) === 'number').reduce((a, b) => a + b, 0));
+  private clearConnectionCache() {
+    this.connectionCache = null;
   }
 
-  addSubtractExpression() {
-    this.calculator.addExpression<number, number>(2, ([a, b]) => typeof(a) === 'number' && typeof(b) === 'number' ? a - b : NaN);
+  addNode(type: GraphNodeType) {
+    this.nodes.push(createNew(type));
+    this.serialize();
+    this.clearConnectionCache();
   }
 
-  removeNode(node: Node) {
-    this.calculator.removeNode(node.node);
+  removeNode(node: GraphNode) {
+    node.inputs.forEach(is => is.forEach(i => i.disconnectPort()));
+    node.outputs.forEach(os => os.forEach(o => o.disconnectPort()));
+    this.nodes.splice(this.nodes.findIndex(n => n === node), 1);
+    this.serialize();
+    this.clearConnectionCache();
   }
 
-  getInputDragOriginPort(): (port: InputPort) => InputPort | OutputPort | false {
-    return port => {
-      if (port.connectedToNode !== undefined) {
-        return this.nodeKeyMap.get(port.connectedToNode).outputs[0];
-      }
-      return port;
+  getInputDragOriginPort(): (input: Input) => Input | Output | false {
+    return (input: Input) => input.connectedTo !== null ? input.connectedTo : input;
+  }
+
+  getDragData(port: Port<any, any>): () => ({ type: GraphValueType }) {
+    return () => ({ type: port.type });
+  }
+
+  getOutputDragOriginPort(): (output: Output) => Input | Output | false {
+    return (output: Output) => output.connectedTo !== null ? output.connectedTo : output;
+  }
+
+  canConnect(output: Output, input: Input) {
+    return output.canConnectPortTo(input);
+  }
+
+  disconnectPort(port: Port<any, any>) {
+    port.disconnectPort();
+    this.serialize();
+    this.clearConnectionCache();
+  }
+
+  connect({ input, output }: { input: Input, output: Output }) {
+    input.connectPortTo(output);
+    this.serialize();
+    this.clearConnectionCache();
+  }
+
+  portClass(port: Port<any, any>, isDragging: boolean): { [klass: string]: boolean } {
+    return {
+      [port.type]: true,
+      connected: port.isConnected || isDragging
     };
   }
 
-  getOutputDragOriginPort(): (port: OutputPort) => OutputPort | InputPort | false {
-    return port => {
-      if (port.connectedTo !== undefined) {
-        return this.nodeKeyMap.get(port.connectedTo.node).inputs[port.connectedTo.port];
-      }
-      return port;
+  portTypeClass(type: string): { [klass: string]: true } {
+    return { [type]: true };
+  }
+
+  connectionPath(output: Pos, input: Pos): string {
+    const from = { x: output.x, y: output.y };
+    const to = { x: input.x, y: input.y };
+
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const handleLength = Math.sqrt(dx * dx + dy * dy) / 2;
+    return `M${from.x},${from.y} C${from.x + handleLength},${from.y} ${to.x - handleLength},${to.y} ${to.x},${to.y}`;
+  }
+
+  connectorPath(center: Pos): string {
+    const { x, y } = center;
+    return `M${x - 4},${y - 3} L${x - 4},${y + 3} L${x + 0.5},${y + 3} L${x + 3},${y} L${x + 0.5},${y - 3} L${x - 4},${y - 3} Z`;
+  }
+
+  connectionSelectionChanged(from: Port<any, any>, to: Port<any, any>, selected: boolean) {
+    console.log(selected);
+    if (selected) {
+      this.selectedConnections.set(from, to);
+    } else {
+      this.selectedConnections.delete(from);
+    }
+  }
+
+  onConnectionContextMenu(event: MouseEvent) {
+    this.connectionContextMenuPosition = {
+      x: event.pageX,
+      y: event.pageY
     };
+    this.showConnectionContextMenu = true;
   }
 
-  canConnect(output: OutputPort, input: InputPort) {
-    return output.connectedTo === undefined && input.connectedToNode === undefined;
-  }
-
-  disconnectOutput(node: Node, port: OutputPort) {
-    if (port.connectedTo === undefined) {
-      return;
+  graphKeyDown(event: KeyboardEvent) {
+    if (event.key.toLowerCase() !== 'delete' && event.key.toLowerCase() !== 'backspace') { return; }
+    if (!event.repeat && this.selectedConnections.size > 0) {
+      this.deleteSelectedConnections();
     }
-    const inputNode = this.nodeKeyMap.get(port.connectedTo.node);
-    this.calculator.disconnectNode(node.node as any, inputNode.node as any);
-    inputNode.inputs[port.connectedTo.port].connectedToNode = undefined;
-    port.connectedTo = undefined;
   }
 
-  disconnectInput(node: Node, port: InputPort) {
-    if (port.connectedToNode === undefined) {
-      return;
+  deleteSelectedConnections() {
+    this.selectedConnections.forEach(o => o.disconnectPort());
+    this.selectedConnections.clear();
+    this.clearConnectionCache();
+    this.showConnectionContextMenu = false;
+  }
+
+  selectAllConnections() {
+    this.selectedConnections.clear();
+    this.connections.forEach(c => this.selectedConnections.set(c.output, c.input));
+    console.log(this.selectedConnections);
+    this.showConnectionContextMenu = false;
+  }
+
+  isSelected(from: Port<any, any>, to: Port<any, any>): boolean {
+    return this.selectedConnections.get(from) === to;
+  }
+
+  @HostListener('document:mousedown', ['$event'])
+  onMouseDown(event: MouseEvent) {
+    // Allow ctrl+rightclick to work on firefox without opening the default context menu
+    if (event.button === 2 && event.ctrlKey) {
+      event.preventDefault();
+      event.stopPropagation();
     }
-    const outputNode = this.nodeKeyMap.get(port.connectedToNode);
-    this.calculator.disconnectNode(outputNode.node as any, node.node as any);
-    outputNode.outputs[0].connectedTo = undefined;
-    port.connectedToNode = undefined;
-  }
 
-  connect(...args) {
-    console.log(...args);
+    // Hide the context menu when the user clicked anywhere else but the context menu
+    let next = event.target as HTMLElement;
+    while (!!next) {
+      if (next === this.connectionContextMenuElement.nativeElement) {
+        return;
+      }
+      next = next.parentElement;
+    }
+    this.showConnectionContextMenu = false;
   }
 }

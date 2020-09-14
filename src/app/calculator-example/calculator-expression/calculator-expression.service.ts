@@ -77,7 +77,6 @@ export class Var<V> extends Expr<V, V> {
     const value = new BehaviorSubject<V>(initial);
     super(1, input => combineLatest([input.pipe(map(([v]) => v)), value]).pipe(
       map(([i, v]) => {
-        console.log('mapping', i, v);
         if (i !== null && i !== v) {
           value.next(i);
           return i;

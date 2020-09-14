@@ -12,6 +12,7 @@ import { Rect } from '../../data/rect';
 /** Partial type of move events from interactjs. */
 interface InteractMoveEvent {
   interaction: Interact.Interaction;
+  originalEvent: Event;
 }
 
 /** Partial type of drag events from interactjs. */
@@ -36,13 +37,12 @@ type InteractDragEndEvent<PortKey>
   | InteractInputDragEndEvent<PortKey>
   ;
 
-type OutputOrInput<PortKey> = ({ output: PortKey } | { input: PortKey });
-
 /** Symbol used to determine if @Input properties were never assigned to. */
 const unassignedSymbol = Symbol('not assigned');
 
 @Directive({
-  selector: '[dnOutput], [dnInput]'
+  selector: '[dnOutput], [dnInput]',
+  exportAs: 'dnPort'
 })
 export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
   /** Emits when all subscriptions should be dropped at the end of the component's lifecycle. */
@@ -141,6 +141,12 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
   @Output()
   dragStarted = new EventEmitter();
 
+  @Output()
+  dragEnded = new EventEmitter();
+
+  @Output()
+  isDragging = new EventEmitter<boolean>();
+
   /**
    * Use this callback to determine if a connect event should be sent or not.
    *
@@ -169,6 +175,9 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
   @Output()
   connect = new EventEmitter<{ output: PortKey, input: PortKey }>();
 
+  @Input()
+  dragData: () => any = (() => {});
+
   /**
    * The interactjs Interactable associated with this directive's host element.
    *
@@ -184,7 +193,10 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
     private elementRef: ElementRef,
     private portRegistry: PortRegistryService<PortKey>,
     private draggedConnections: DraggedConnectionsService<PortKey>
-  ) { }
+  ) {
+    this.dragStarted.subscribe(() => this.isDragging.next(true));
+    this.dragEnded.subscribe(() => this.isDragging.next(false));
+  }
 
   ngAfterViewInit(): void {
     if (this.isOutput === this.isInput) {
@@ -205,11 +217,13 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
       manualStart: true,
       autoScroll: true,
       onstart: (event: InteractDragEvent) => {
+        const data = typeof(this.dragData) === 'function' ? this.dragData() : undefined;
         if (this.isInput) {
-          this.draggedConnections.startInputDrag(this.portKey, { ...event.client });
+          this.draggedConnections.startInputDrag(this.portKey, { ...event.client }, data);
         } else {
-          this.draggedConnections.startOutputDrag(this.portKey, { ...event.client });
+          this.draggedConnections.startOutputDrag(this.portKey, { ...event.client }, data);
         }
+        this.dragStarted.emit();
       },
       onmove: (event: InteractDragEvent) => {
         if (this.isInput) {
@@ -226,6 +240,7 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
           this.draggedConnections.endOutputDrag(this.portKey);
           event[outputSymbol] = this.portKey;
         }
+        this.dragEnded.emit();
       }
     });
 
@@ -236,6 +251,7 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
           const startPort = this.portRegistry.getPort(dragOrigin);
           startPort.startDrag(event.interaction);
         }
+
       }
     });
 
@@ -265,7 +281,6 @@ export class NodePortDirective<PortKey> implements AfterViewInit, OnDestroy {
   /** Starts a drag event. */
   private startDrag(interaction: Interact.Interaction) {
     interaction.start({ name: 'drag' }, this.interactable, this.elementRef.nativeElement);
-    this.dragStarted.emit();
   }
 
   /** Recalculates the relative position of the port within its containing node. */

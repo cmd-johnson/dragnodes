@@ -3,11 +3,27 @@ import { NumVarGraphNode } from './nodes/num-var-graph-node';
 import { BoolVarGraphNode } from './nodes/bool-var-graph-node';
 import { SumGraphNode } from './nodes/sum-graph-node';
 import { IfGraphNode } from './nodes/if-graph-node';
+import { SubGraphNode } from './nodes/sub-graph-node';
+import { MultGraphNode } from './nodes/mult-graph-node';
+import { DivGraphNode } from './nodes/div-graph-node';
+import { GtGraphNode } from './nodes/gt-graph-node';
+import { GteGraphNode } from './nodes/gte-graph-node';
+import { EqGraphNode } from './nodes/eq-graph-node';
+import { LteGraphNode } from './nodes/lte-graph-node';
+import { LtGraphNode } from './nodes/lt-graph-node';
 
 const nodeConstructors: { readonly [T in GraphNodeType]: new (pos?: Pos) => GraphNode<any> } = {
   numvar: NumVarGraphNode,
   boolvar: BoolVarGraphNode,
   sum: SumGraphNode,
+  sub: SubGraphNode,
+  mult: MultGraphNode,
+  div: DivGraphNode,
+  gt: GtGraphNode,
+  gte: GteGraphNode,
+  eq: EqGraphNode,
+  lte: LteGraphNode,
+  lt: LtGraphNode,
   if: IfGraphNode
 };
 

@@ -7,7 +7,9 @@ export type Pos = { x: number, y: number };
 
 export type GraphNodeType
   = 'numvar' | 'boolvar'
-  | 'sum'
+  | 'sum' | 'sub'
+  | 'mult' | 'div'
+  | 'gt' | 'gte' | 'eq' | 'lte' | 'lt'
   | 'if'
   ;
 
@@ -28,6 +30,10 @@ export abstract class Port<T, Other extends Port<any, any>> {
   readonly $connectedTo: BehaviorSubject<Other | null>;
   get connectedTo(): Other {
     return this.$connectedTo.value;
+  }
+
+  get isConnected(): boolean {
+    return this.connectedTo !== null;
   }
 
   abstract readonly portType: 'input' | 'output';
@@ -114,10 +120,10 @@ export abstract class GraphNode<T = undefined> {
   private inputPorts = new Map<string, Input[]>();
   private outputPorts = new Map<string, Output[]>();
 
-  get inputs(): ExtReadonlyMap<string, Readonly<Input>[]> {
+  get inputs(): Map<string, Input[]> {
     return this.inputPorts;
   }
-  get outputs(): ExtReadonlyMap<string, Readonly<Output[]>> {
+  get outputs(): Map<string, Output[]> {
     return this.outputPorts;
   }
 

@@ -12,42 +12,44 @@ import { Pos } from '../../data/pos';
 })
 export class DraggedConnectionsService<PortKey> {
   /** Returns all dragged connections originating from an output port. */
-  public get draggedOutputs(): { output: PortKey, cursor: Pos }[] {
-    return [...this.outputDrags.entries()].map(([ k, v ]) => ({ output: k, cursor: v }));
+  public get draggedOutputs(): { output: PortKey, cursor: Pos, data?: any }[] {
+    return [...this.outputDrags.entries()].map(([ k, v ]) => ({ output: k, cursor: v.pos, data: v.data }));
   }
 
   /** Returns all dragged connections originating from an input port. */
-  public get draggedInputs(): { input: PortKey, cursor: Pos }[] {
-    return [...this.inputDrags.entries()].map(([k, v]) => ({ input: k, cursor: v }));
+  public get draggedInputs(): { input: PortKey, cursor: Pos, data?: any }[] {
+    return [...this.inputDrags.entries()].map(([k, v]) => ({ input: k, cursor: v.pos, data: v.data }));
   }
 
   /** Keeps track of all dragged connections originating from output ports and their target cursor position. */
-  private outputDrags = new Map<PortKey, Pos>();
+  private outputDrags = new Map<PortKey, { pos: Pos, data?: any }>();
 
   /** Keeps track of all dragged connections originating from input ports and their target cursor position. */
-  private inputDrags = new Map<PortKey, Pos>();
+  private inputDrags = new Map<PortKey, { pos: Pos, data?: any }>();
 
   /** Starts dragging a connection from an output port to the cursorPosition. */
-  public startOutputDrag(output: PortKey, cursorPosition: Pos): void {
-    this.outputDrags.set(output, cursorPosition);
+  public startOutputDrag(output: PortKey, cursorPosition: Pos, data?: any): void {
+    this.outputDrags.set(output, { pos: cursorPosition, data });
   }
 
   /** Starts dragging a connection from an input port to the cursorPosition. */
-  public startInputDrag(input: PortKey, cursorPosition: Pos): void {
-    this.inputDrags.set(input, cursorPosition);
+  public startInputDrag(input: PortKey, cursorPosition: Pos, data?: any): void {
+    this.inputDrags.set(input, { pos: cursorPosition, data });
   }
 
   /** Continues dragging a connection from an output port to the cursorPosition. */
   public dragOutput(output: PortKey, cursorPosition: Pos): void {
     if (this.outputDrags.has(output)) {
-      this.outputDrags.set(output, cursorPosition);
+      const { data } = this.outputDrags.get(output);
+      this.outputDrags.set(output, { pos: cursorPosition, data });
     }
   }
 
   /** Continues dragging a connection from an input port to the cursorPosition. */
   public dragInput(input: PortKey, cursorPosition: Pos): void {
     if (this.inputDrags.has(input)) {
-      this.inputDrags.set(input, cursorPosition);
+      const { data } = this.inputDrags.get(input);
+      this.inputDrags.set(input, { pos: cursorPosition, data });
     }
   }
 

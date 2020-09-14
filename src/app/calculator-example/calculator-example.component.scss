@@ -1,12 +1,25 @@
+dn-graph {
+  outline: none;
+}
+
+.connection-context-menu {
+  visibility: hidden;
+  z-index: 100;
+  display: block;
+  position: absolute;
+  background: #f0f;
+}
+
 .node {
+  z-index: 20;
+
   min-width: 200px;
-  min-height: 100px;
 
   user-select: none;
   touch-action: none;
 
   display: flex;
-  background: #546E7A;
+  background: rgba(84, 110, 122, 0.7);
   box-shadow: 0 0 8px -4px black;
   border-radius: 4px;
   flex-direction: column;
@@ -47,20 +60,89 @@
 
       .port {
         display: inline-block;
-        width: 16px;
-        height: 16px;
-        border-radius: 8px;
-        margin: 0 4px;
+        margin: 2px;
         cursor: pointer;
+        pointer-events: visibleFill;
       }
 
-      .input .port {
-        background: radial-gradient(circle, transparent 50%, #DD2C00 51%);
+      .port.bool {
+        stroke: rgb(200,28,76);
+        fill: none;
+        stroke-width: 2px;
+        stroke-linejoin: round;
+        &.connected {
+          fill: rgb(200,28,76);
+        }
       }
 
-      .output .port {
-        background: radial-gradient(circle, transparent 50%, #64DD17 51%);
+      .port.num {
+        stroke: rgb(62,200,28);
+        fill: none;
+        stroke-width: 2px;
+        stroke-linejoin: round;
+        &.connected {
+          fill: rgb(62,200,28);
+        }
       }
     }
   }
+}
+
+.connection {
+  z-index: 10;
+
+  stroke-width: 3px;
+  stroke-linecap: round;
+  fill: none;
+
+  &.bool {
+    stroke: rgb(200,28,76);
+  }
+
+  &.num {
+    stroke: rgb(62,200,28);
+  }
+}
+
+.selected-connection {
+  stroke-width: 8px;
+  stroke-linecap: round;
+  fill: none;
+
+  &.bool {
+    stroke: rgba(200,28,76,0.45);
+  }
+
+  &.num {
+    stroke: rgba(62,200,28,0.4);
+  }
+}
+
+.selection-highlight {
+  visibility: hidden;
+
+  stroke-width: 8px;
+  stroke-linecap: round;
+  fill: none;
+
+  &.bool {
+    stroke: rgba(200,28,76,0.45);
+  }
+
+  &.num {
+    stroke: rgba(62,200,28,0.4);
+  }
+}
+
+.connection.selected ~ .selection-highlight {
+  visibility: visible;
+}
+
+.connection-hitbox {
+  pointer-events: stroke;
+  fill: none;
+  stroke: none;
+  stroke-width: 12px;
+
+  cursor: pointer;
 }

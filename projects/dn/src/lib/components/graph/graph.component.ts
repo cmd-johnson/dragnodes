@@ -31,16 +31,18 @@ export class GraphComponent<PortKey> implements AfterViewInit, OnDestroy {
   connectionSvg: TemplateRef<SVGElement>;
 
   /** Returns a list of all start and end points of dragged connections. */
-  get draggedConnections(): { from: Pos, to: Pos }[] {
+  get draggedConnections(): { from: Pos, to: Pos, data?: any }[] {
     const { left: dx, top: dy } = (this.element.nativeElement as HTMLElement).getBoundingClientRect();
     return [
-      ...this.draggedConnectionsService.draggedOutputs.map(({ output, cursor }) => ({
+      ...this.draggedConnectionsService.draggedOutputs.map(({ output, cursor, data }) => ({
         from: this.getCenter(this.portRegistry.getPortRect(output)),
-        to: { x: cursor.x - dx, y: cursor.y - dy }
+        to: { x: cursor.x - dx, y: cursor.y - dy },
+        data
       })),
-      ...this.draggedConnectionsService.draggedInputs.map(({ input, cursor }) => ({
+      ...this.draggedConnectionsService.draggedInputs.map(({ input, cursor, data }) => ({
         from: { x: cursor.x - dx, y: cursor.y - dy },
-        to: this.getCenter(this.portRegistry.getPortRect(input))
+        to: this.getCenter(this.portRegistry.getPortRect(input)),
+        data
       }))
     ];
   }
@@ -54,7 +56,7 @@ export class GraphComponent<PortKey> implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     if (!this.connectionSvg) {
       /*
-       * Wait until the next change detection cycle to update the value to prevent
+       * Set the value in the next change detection cycle to prevent
        * ExpressionChangedAfterItHasBeenCheckedErrors in development mode.
        */
       setTimeout(() => this.connectionSvg = this.defaultConnectionSvg);
