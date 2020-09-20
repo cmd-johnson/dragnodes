@@ -80,7 +80,7 @@ export class SelectableDirective implements OnInit, OnDestroy {
       }
       // Don't de-select this element when right-clicking and this element is already selected, as
       // the right-click could be used to open a context menu.
-      if (event.button === 2 && this.isSelected.value && event.target === this.element.nativeElement) {
+      if (event.button === 2 && this.isSelected.value) {
         return;
       }
     }

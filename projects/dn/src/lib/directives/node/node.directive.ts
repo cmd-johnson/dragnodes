@@ -1,6 +1,6 @@
 import { Directive, Input, Output, EventEmitter, HostBinding, OnDestroy, AfterViewInit, ElementRef } from '@angular/core';
 import { Subject } from 'rxjs';
-import { scan, takeUntil, startWith, distinctUntilChanged, throttleTime, share, pairwise, filter, map } from 'rxjs/operators';
+import { scan, takeUntil, startWith, distinctUntilChanged, throttleTime, share } from 'rxjs/operators';
 import interact from 'interactjs';
 
 import { Pos } from '../../data/pos';

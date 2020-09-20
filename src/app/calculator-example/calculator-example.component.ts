@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, HostListener, HostBinding, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, HostListener, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { Subject } from 'rxjs';
 
 import { GraphNode, Output, Input, Port, Pos, GraphValueType, GraphNodeType } from './graph-test/graph-node';
@@ -17,7 +17,6 @@ export class CalculatorExampleComponent implements OnInit, OnDestroy, AfterViewI
 
   public nodes: GraphNode[] = [];
 
-  // TODO: cache these. clear the cache only when connections are added/deleted.
   private connectionCache: { input: Port<any, any>, output: Port<any, any>, type: GraphValueType }[] = null;
   public get connections(): { input: Port<any, any>, output: Port<any, any>, type: GraphValueType }[] {
     if (this.connectionCache !== null) {
@@ -150,7 +149,9 @@ export class CalculatorExampleComponent implements OnInit, OnDestroy, AfterViewI
   }
 
   connectionSelectionChanged(from: Port<any, any>, to: Port<any, any>, selected: boolean) {
-    console.log(selected);
+    if (!from || !to) {
+      return;
+    }
     if (selected) {
       this.selectedConnections.set(from, to);
     } else {
